@@ -1,0 +1,16 @@
+#!/usr/bin/php
+<?php
+
+use iPerGraph\IcingaStreamer;
+use iPerGraph\Main;
+use iPerGraph\RedisPerfDataApi;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+$icingaConfig = include __DIR__ . '/icingaConfig.php';
+$redisConfig = include __DIR__ . '/redisConfig.php';
+
+$main = new Main();
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $redisConfig);
+$icinga = new IcingaStreamer($main->getLoop(), $main->getLogger(), $icingaConfig);
+$icinga->on('perfData', [$redis, 'shipPerfData']);
+$main->startLoop();
