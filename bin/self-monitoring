@@ -1,0 +1,15 @@
+#!/usr/bin/php
+<?php
+
+use iPerGraph\Main;
+use iPerGraph\RedisPerfDataApi;
+use iPerGraph\SelfMonitoring;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+$redisConfig = include __DIR__ . '/redisConfig.php';
+
+$main = new Main();
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $redisConfig);
+$monitor = new SelfMonitoring($main->getLoop(), $redis, $main->getLogger());
+$monitor->on('perfData', [$redis, 'shipPerfData']);
+$main->startLoop();
