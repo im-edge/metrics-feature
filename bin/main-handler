@@ -1,0 +1,19 @@
+#!/usr/bin/php
+<?php
+
+use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
+use iPerGraph\DeferredHandler;
+use iPerGraph\Main;
+use iPerGraph\MainUpdateHandler;
+use iPerGraph\RedisPerfDataApi;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+$config = include __DIR__ . '/config.inc.php';
+
+$main = new Main();
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis->setClientName('iPerGraph::main');
+$rrdCached = new RrdCachedClient($config->rrdcached->socket, $main->getLoop());
+$deferredHandler = new MainUpdateHandler($redis, $rrdCached, $main->getLogger());
+$deferredHandler->run($main->getLoop());
+$main->startLoop();
