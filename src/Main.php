@@ -3,6 +3,7 @@
 namespace iPerGraph;
 
 use Exception;
+use gipfl\Log\Filter\LogLevelFilter;
 use gipfl\Log\Logger;
 use gipfl\Log\Writer\SystemdStdoutWriter;
 use Psr\Log\LoggerInterface;
@@ -114,6 +115,7 @@ class Main
     {
         $logger = new Logger();
         $logger->addWriter(new SystemdStdoutWriter($this->loop));
+        // $logger->addFilter(new LogLevelFilter('notice'));
         $this->logger = $logger;
     }
 }
