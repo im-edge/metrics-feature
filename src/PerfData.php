@@ -34,8 +34,35 @@ class PerfData implements JsonSerializable
         ];
     }
 
+    public function getTime()
+    {
+        if ($this->timestamp === null) {
+            return time();
+        }
+        if (is_int($this->timestamp)) {
+            return $this->timestamp;
+        }
+        if (is_float($this->timestamp)) {
+            return (int) $this->timestamp;
+        }
+
+        throw new \InvalidArgumentException('Timestamp expected, got: ' . var_export($this->timestamp, 1));
+    }
+
+    public function getValues()
+    {
+        return $this->values;
+    }
+
     public function toJson()
     {
         return json_encode($this, self::JSON_FLAGS);
+    }
+
+    public static function fromJson($string)
+    {
+        // TODO: Fail, use JSON class
+        $obj = json_decode($string, false);
+        return new static($obj->ci, $obj->dp, $obj->ts);
     }
 }
