@@ -17,7 +17,7 @@
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.2",
     "gipfl/redis-lua": "@dev",
-    "gipfl/rrdtool": "dev-master",
+    "gipfl/rrdtool": ">=0.2",
     "react/event-loop": "^1.1",
     "ext-ctype": "*",
     "ext-mbstring": "*"
