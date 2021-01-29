@@ -6,11 +6,11 @@ use iPerGraph\Main;
 use iPerGraph\RedisPerfDataApi;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-$icingaConfig = include __DIR__ . '/icingaConfig.php';
-$redisConfig = include __DIR__ . '/redisConfig.php';
+$config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $redisConfig);
-$icinga = new IcingaStreamer($main->getLoop(), $main->getLogger(), $icingaConfig);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis->setClientName('iPerGraph::icinga-stream');
+$icinga = new IcingaStreamer($main->getLoop(), $main->getLogger(), $config->icinga);
 $icinga->on('perfData', [$redis, 'shipPerfData']);
 $main->startLoop();
