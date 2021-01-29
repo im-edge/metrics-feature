@@ -16,7 +16,7 @@
     "gipfl/icinga-api": ">=0.2",
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.2",
-    "gipfl/redis-lua": "@dev",
+    "gipfl/redis-utils": ">=0.1",
     "gipfl/rrdtool": ">=0.2",
     "react/event-loop": "^1.1",
     "ext-ctype": "*",
