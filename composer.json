@@ -12,7 +12,6 @@
     "ext-json": "*",
     "ext-openssl": "*",
     "ext-pcntl": "*",
-    "clue/mq-react": "dev-master",
     "gipfl/icinga-api": ">=0.2",
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.2",

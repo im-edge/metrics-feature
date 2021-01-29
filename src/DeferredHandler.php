@@ -2,7 +2,6 @@
 
 namespace iPerGraph;
 
-use Clue\React\Mq\Queue;
 use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerAwareTrait;
