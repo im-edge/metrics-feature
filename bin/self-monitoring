@@ -6,10 +6,11 @@ use iPerGraph\RedisPerfDataApi;
 use iPerGraph\SelfMonitoring;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-$redisConfig = include __DIR__ . '/redisConfig.php';
+$config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $redisConfig);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis->setClientName('iPerGraph::self-monitoring');
 $monitor = new SelfMonitoring($main->getLoop(), $redis, $main->getLogger());
 $monitor->on('perfData', [$redis, 'shipPerfData']);
 $main->startLoop();

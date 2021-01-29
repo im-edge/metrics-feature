@@ -22,8 +22,12 @@ class SelfMonitoring implements EventEmitterInterface
 
     protected $fetchingRedis;
 
-    public function __construct(LoopInterface $loop, RedisPerfDataApi $redisApi, LoggerInterface $logger, $ciName = '000-icinga-rrd-node')
-    {
+    public function __construct(
+        LoopInterface $loop,
+        RedisPerfDataApi $redisApi,
+        LoggerInterface $logger,
+        $ciName = '000-icinga-rrd-node'
+    ) {
         $this->loop = $loop;
         $this->redisApi = $redisApi;
         $this->logger = $logger;
@@ -47,8 +51,15 @@ class SelfMonitoring implements EventEmitterInterface
 
     protected function emitCpuPerformance()
     {
+        $counters = Cpu::getCounters();
+        $flat = [];
+        foreach ($counters as $cpu => $cpuCounters) {
+            foreach ($cpuCounters as $label => $counter) {
+                $flat["$cpu.$label"] = $counter . 'c';
+            }
+        }
         $this->emit('perfData', [
-            new PerfData($this->ciName . '/RRDHost', Cpu::getCounters(), time())
+            new PerfData($this->ciName . '/RRDHost', $flat, time())
         ]);
     }
 
