@@ -49,7 +49,7 @@ class RedisPerfDataApi
         $this->loop = $loop;
         $this->logger = $logger;
         $this->socketUri = 'redis+unix://' . $redisConfig->socket;
-        $this->luaDir = $redisConfig->luaDir;
+        $this->luaDir = dirname(__DIR__) . '/lua';
     }
 
     public function setClientName($name)
