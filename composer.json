@@ -1,0 +1,27 @@
+{
+  "config": {
+    "sort-packages": true
+  },
+  "autoload": {
+    "psr-4": {
+      "iPerGraph\\": "src"
+    }
+  },
+  "require": {
+    "php": ">=5.6.6",
+    "ext-json": "*",
+    "ext-openssl": "*",
+    "ext-pcntl": "*",
+    "clue/mq-react": "dev-master",
+    "gipfl/icinga-api": "@dev",
+    "gipfl/linux-health": "dev-master",
+    "gipfl/log": ">=0.2",
+    "gipfl/redis-lua": "@dev",
+    "gipfl/rrdtool": "dev-master",
+    "react/event-loop": "^1.1",
+    "ext-ctype": "*",
+    "ext-mbstring": "*"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": false
+}
