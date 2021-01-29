@@ -6,6 +6,7 @@ use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
+use RuntimeException;
 
 class MainUpdateHandler
 {
@@ -113,7 +114,7 @@ class MainUpdateHandler
             $this->position = $entry[0];
             // entry = [ 1537893299864-0, [key, val, .., ..]
             if ($entry[1][0] !== 'update') {
-                throw new \RuntimeException("Got invalid update from stream: " . json_encode($entry, 1));
+                throw new RuntimeException("Got invalid update from stream: " . json_encode($entry, 1));
             }
             $line = $entry[1][1];
             if ($this->startingUp) {

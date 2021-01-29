@@ -4,9 +4,11 @@ namespace iPerGraph;
 
 use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
-use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
+use function count;
+use function ctype_digit;
+use function key;
 
 class DeferredHandler
 {
@@ -19,12 +21,13 @@ class DeferredHandler
     /** @var LoopInterface */
     protected $loop;
 
-    protected $pendingCi = [];
-
     /** @var RedisPerfDataApi */
     protected $redisApi;
 
+    /** @var LoggerInterface */
     protected $logger;
+
+    protected $pendingCi = [];
 
     // TODO
     // Infrastructure needs to be always ready,
@@ -45,7 +48,7 @@ class DeferredHandler
         $this->logger->info("DeferredHandler is ready to start");
         $loop->addPeriodicTimer(1, function () {
             if (! $this->checkForDeferred()) {
-                $this->logger->warning("Deferred check/handler is still running");
+                $this->logger->warning('Deferred check/handler is still running');
             }
         });
     }
@@ -63,9 +66,8 @@ class DeferredHandler
             foreach ($cis as $ci => $cTime) {
                 if (ctype_digit($cTime)) {
                     $this->pendingCi[$ci] = $ci;
-                } else {
-                    // TODO: handle manual deferred, json_decode, -> reason
                 }
+                // TODO: (else) handle manual deferred, json_decode, -> reason
             }
             $cntPending = count($this->pendingCi);
             $cntDeferred = count($cis);

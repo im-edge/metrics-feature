@@ -2,8 +2,13 @@
 
 namespace iPerGraph;
 
+use InvalidArgumentException;
 use JsonSerializable;
+use function is_float;
+use function is_int;
+use function json_decode;
 use function json_encode;
+use function time;
 use const JSON_PRESERVE_ZERO_FRACTION;
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
@@ -46,7 +51,7 @@ class PerfData implements JsonSerializable
             return (int) $this->timestamp;
         }
 
-        throw new \InvalidArgumentException('Timestamp expected, got: ' . var_export($this->timestamp, 1));
+        throw new InvalidArgumentException('Timestamp expected, got: ' . var_export($this->timestamp, 1));
     }
 
     public function getValues()

@@ -2,7 +2,6 @@
 <?php
 
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
-use iPerGraph\DeferredHandler;
 use iPerGraph\Main;
 use iPerGraph\MainUpdateHandler;
 use iPerGraph\RedisPerfDataApi;

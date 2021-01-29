@@ -10,8 +10,12 @@ use gipfl\RrdTool\SampleRraSet;
 use iPerGraph\NamingStrategy\DefaultNamingStrategy;
 use Psr\Log\LoggerInterface;
 use React\Promise;
-use function array_combine;
+use function addcslashes;
+use function array_flip;
 use function array_keys;
+use function floor;
+use function implode;
+use function sprintf;
 use function substr;
 
 // TODO: remove echo/print
@@ -84,14 +88,11 @@ class Store
         // provided the parameters are valid, and (if the -O option is given
         // or if the rrdcached was started with the -O flag) the specified
         // filename does not already exist.
-        $register = function () use ($ci, $cfg) {
-            return $this->redisApi->setCiConfig($ci, $cfg);
-        };
 
         return $this->rrdCached->info($cfg->filename)
             ->then(function (RrdInfo $info) use ($ci, $cfg, $dsList) {
                 // echo "Got info for $filename\n";
-                $currentNames = \array_flip($info->listDsNames());
+                $currentNames = array_flip($info->listDsNames());
                 $newDs = [];
                 // TODO: compare type and other properties
                 foreach ($dsList as $ds) {
@@ -101,10 +102,10 @@ class Store
                 }
                 if (! empty($newDs)) {
                     // $rrdtool->run("tune $file $tuning", false);
-                    $this->logger->debug(\sprintf(
+                    $this->logger->debug(sprintf(
                         "Tuning %s (not yet): %s\n",
                         $cfg->filename,
-                        \implode(', ', array_keys($newDs))
+                        implode(', ', array_keys($newDs))
                     ));
                 }
 
@@ -133,9 +134,9 @@ class Store
             $rraSet = SampleRraSet::pnpDefaults();
         }
 
-        $cmd = \sprintf(
+        $cmd = sprintf(
             "CREATE %s -s %d -b %d %s %s",
-            \addcslashes($filename, ' '), // TODO: check how to escape
+            addcslashes($filename, ' '), // TODO: check how to escape
             $step,
             $start,
             $dsList,

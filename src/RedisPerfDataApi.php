@@ -12,10 +12,11 @@ use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
 use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
-use React\Promise\PromiseInterface;
-use function current;
 use function React\Promise\reject;
 use function React\Promise\resolve;
+use function current;
+use function json_encode;
+use function time;
 
 class RedisPerfDataApi
 {
@@ -69,17 +70,10 @@ class RedisPerfDataApi
         if ($this->redis === null) {
             $deferred = new Deferred();
             $this->redis = $deferred->promise();
-            $this->logger->info('CONNI');
             $this->keepConnectingToRedis()->then(function (RedisClient $client) use ($deferred) {
-                $this->logger->info('GOT CONNECTION');
                 $this->redis = $client;
                 $deferred->resolve($client);
             });
-            $this->logger->info('Return promise for redis');
-            return $this->redis;
-        }
-        if ($this->redis instanceof PromiseInterface) {
-            $this->logger->info('Still promise for redis');
             return $this->redis;
         }
 
@@ -120,7 +114,6 @@ class RedisPerfDataApi
     protected function keepConnectingToRedis()
     {
         $deferred = new Deferred();
-        $this->logger->info('Keep connectiong');
         $retry = RetryUnless::succeeding(function () use ($deferred) {
             return $this->connectToRedis()->then(function (RedisClient $client) use ($deferred) {
                 $deferred->resolve($client);
@@ -134,13 +127,12 @@ class RedisPerfDataApi
 
     public function connectToRedis()
     {
-        $this->logger->info('Connect!' . $this->socketUri);
         $factory = new RedisFactory($this->loop);
         return $factory
             ->createClient($this->socketUri)
             ->then(function (RedisClient $client) {
                 return $this->redisIsReady($client);
-            }, function (\Exception $e) {
+            }, function (Exception $e) {
                 if ($previous = $e->getPrevious()) {
                     throw new \RuntimeException($e->getMessage() . ': ' . $e->getPrevious()->getMessage(), 0, $e);
                 }
@@ -181,7 +173,6 @@ class RedisPerfDataApi
 
     public function fetchLastPosition()
     {
-        $this->logger->info('Fetching last pos');
         return $this->getRedisConnection()->then(function ($client) {
             return $client->get($this->prefix . 'stream-last-pos');
         });
@@ -197,7 +188,7 @@ class RedisPerfDataApi
     public function setCiConfig($ci, $config)
     {
         $this->logger->debug("Registering $ci in Redis");
-        return $this->hSet('ci', $ci, \json_encode($config, self::JSON_FLAGS));
+        return $this->hSet('ci', $ci, json_encode($config, self::JSON_FLAGS));
     }
 
     public function deferCi($ci, $reason = null)
@@ -270,7 +261,7 @@ class RedisPerfDataApi
         $client->on('end', function () {
             $this->logger->info('Redis ended');
         });
-        $client->on('error', function (\Exception $e) {
+        $client->on('error', function (Exception $e) {
             $this->logger->error('Redis error: ' . $e->getMessage());
         });
 
@@ -281,7 +272,6 @@ class RedisPerfDataApi
         $this->redis = $client;
 
         return $client->client('setname', $this->clientName)->then(function () {
-            $this->logger->debug(sprintf("Changed client name to '%s'", $this->clientName));
             return $this->redis;
         });
     }
