@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph\NamingStrategy;
+namespace IcingaGraphing\NamingStrategy;
 
 use gipfl\RrdTool\Ds;
 use gipfl\RrdTool\DsList;
@@ -37,31 +37,42 @@ class DefaultNamingStrategy
 
     /**
      * @param array $parts { name => [ type, value ], otherName => ... }
+     * @param DsList|null $formerDsList
      * @return DsList
      */
-    public function getDataSourcesFor($parts)
+    public function getDataSourcesFor($parts, DsList $formerDsList = null)
     {
         $result = new DsList();
+        if ($formerDsList) {
+            $result = clone($formerDsList);
+        }
+        // TODO: Former mapping!!
         $seen = [];
         foreach ($parts as $originalName => list($type, $value)) {
-            $name = $this->shorten($this->replaceInvalidCharacters($originalName));
-            while (isset($seen[$name])) {
-                $this->logger->debug(sprintf("Alias '%s' already exists", $name));
-                if (\preg_match('/_(\d+)$/', $name, $numMatch)) {
-                    $name = \preg_replace('/_\d+$/', '_' . ((int) $numMatch[1] + 1), $name);
-                } else {
-                    $name = $this->shorten($name, 17) . '_2';
-                }
-                $this->logger->debug(sprintf("New alias: '%s'", $name));
-            }
-            if ($name !== $originalName) {
-                $this->logger->debug(sprintf("Aliased DS '%s' to '%s'", $originalName, $name));
-            }
-            $seen[$name] = true;
-            $result->add(Ds::create($name, $type, 8640));
+            $result->add(Ds::create($this->getDsNameFor($originalName, $seen), $type, 8640));
         }
 
         return $result;
+    }
+
+    protected function getDsNameFor($label, &$seen = [])
+    {
+        $name = $this->shorten($this->replaceInvalidCharacters($label));
+        while (isset($seen[$name])) {
+            $this->logger->debug(sprintf("Alias '%s' already exists", $name));
+            if (\preg_match('/_(\d+)$/', $name, $numMatch)) {
+                $name = \preg_replace('/_\d+$/', '_' . ((int) $numMatch[1] + 1), $name);
+            } else {
+                $name = $this->shorten($name, 17) . '_2';
+            }
+            $this->logger->debug(sprintf("New alias: '%s'", $name));
+        }
+        if ($name !== $label) {
+            $this->logger->debug(sprintf("Aliased DS '%s' to '%s'", $label, $name));
+        }
+        $seen[$name] = true;
+
+        return $name;
     }
 
     protected function replaceInvalidCharacters($name)

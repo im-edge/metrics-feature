@@ -4,7 +4,7 @@
   },
   "autoload": {
     "psr-4": {
-      "iPerGraph\\": "src"
+      "IcingaGraphing\\": "src"
     }
   },
   "require": {

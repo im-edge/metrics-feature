@@ -2,17 +2,19 @@
 <?php
 
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
-use iPerGraph\DeferredHandler;
-use iPerGraph\Main;
-use iPerGraph\RedisPerfDataApi;
+use IcingaGraphing\DeferredHandler;
+use IcingaGraphing\Main;
+use IcingaGraphing\RedisPerfDataApi;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
 $redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
-$redis->setClientName('iPerGraph::deferred');
+$redis->setClientName('IcingaGraphing::deferred');
 $rrdCached = new RrdCachedClient($config->rrdcached->socket, $main->getLoop());
 $deferredHandler = new DeferredHandler($redis, $rrdCached, $main->getLogger());
+$baseDir = '/var/lib/icingagraphing/rrd/data';
+chdir($baseDir);
 $deferredHandler->run($main->getLoop());
 $main->startLoop();

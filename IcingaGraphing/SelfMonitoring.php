@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;

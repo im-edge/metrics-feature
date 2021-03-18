@@ -1,16 +1,16 @@
 #!/usr/bin/php
 <?php
 
-use iPerGraph\Main;
-use iPerGraph\RedisPerfDataApi;
-use iPerGraph\SelfMonitoring;
+use IcingaGraphing\Main;
+use IcingaGraphing\RedisPerfDataApi;
+use IcingaGraphing\SelfMonitoring;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
 $redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
-$redis->setClientName('iPerGraph::self-monitoring');
+$redis->setClientName('IcingaGraphing::self-monitoring');
 $monitor = new SelfMonitoring($main->getLoop(), $redis, $main->getLogger());
 $monitor->on('perfData', [$redis, 'shipPerfData']);
 $main->startLoop();

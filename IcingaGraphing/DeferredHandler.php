@@ -1,8 +1,9 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use Exception;
+use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
@@ -12,9 +13,6 @@ use function key;
 
 class DeferredHandler
 {
-    /** @var RrdCachedClient */
-    protected $rrdCached;
-
     /** @var Store */
     protected $store;
 
@@ -29,17 +27,22 @@ class DeferredHandler
 
     protected $pendingCi = [];
 
+    protected $checking;
+
     // TODO
     // Infrastructure needs to be always ready,
     // if one of them fails eventually keep fetching stats
     // from the others, but stop working and get into failed
     // state. Or exit and let the parent process deal with this
-    public function __construct(RedisPerfDataApi $redisApi, RrdCachedClient $rrdCached, LoggerInterface $logger)
-    {
+    public function __construct(
+        RedisPerfDataApi $redisApi,
+        RrdCachedClient $rrdCached,
+        AsyncRrdtool $rrdtool,
+        LoggerInterface $logger
+    ) {
         $this->redisApi = $redisApi;
         $this->logger = $logger;
-        $this->rrdCached = $rrdCached;
-        $this->store = new Store($redisApi, $rrdCached, $logger);
+        $this->store = new Store($redisApi, $rrdCached, $rrdtool, $logger);
     }
 
     public function run(LoopInterface $loop)
@@ -55,11 +58,11 @@ class DeferredHandler
 
     protected function checkForDeferred()
     {
-        if (! empty($this->pendingCi)) {
+        if ($this->checking || ! empty($this->pendingCi)) {
             return true;
         }
 
-        $this->redisApi->fetchDeferred()->then(function ($cis) {
+        $this->checking = $this->redisApi->fetchDeferred()->then(function ($cis) {
             if (empty($cis)) {
                 return true;
             }
@@ -107,7 +110,7 @@ class DeferredHandler
                 // $base = 1;
                 $base = 60; // 60 second base for now
 
-                return $this->store->createCi($ci, $perfData, $base);
+                return $this->store->wantCi($ci, $perfData, $base);
             })->then(function () use ($ci) {
                 $this->logger->debug("DeferredHandler: rescheduling all entries for $ci");
                 return $this->redisApi->rescheduleDeferredCi($ci);

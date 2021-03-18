@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use Clue\React\Redis\Client as RedisClient;
 use Clue\React\Redis\Factory as RedisFactory;
@@ -12,6 +12,7 @@ use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
 use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
+use function React\Promise\all;
 use function React\Promise\reject;
 use function React\Promise\resolve;
 use function current;
@@ -42,7 +43,7 @@ class RedisPerfDataApi
 
     protected $prefix = 'rrd:';
 
-    protected $clientName = 'iPerGraph';
+    protected $clientName = 'IcingaGraphing';
 
     public function __construct(LoopInterface $loop, LoggerInterface $logger, $redisConfig)
     {
@@ -102,9 +103,7 @@ class RedisPerfDataApi
     {
         return $this->getLuaRunner()->then(function (LuaScriptRunner $lua) use ($perfData) {
             $lua->runScript('shipPerfData', [$perfData->toJson()]) // TODO: ship prefix
-            ->then(function ($result) {
-                return RedisUtil::makeHash($result);
-            }, function (Exception $e) {
+            ->then([RedisUtil::class, 'makeHash'], function (Exception $e) {
                 $this->logger->error($e->getMessage());
                 return $e;
             });
@@ -188,7 +187,11 @@ class RedisPerfDataApi
     public function setCiConfig($ci, $config)
     {
         $this->logger->debug("Registering $ci in Redis");
-        return $this->hSet('ci', $ci, json_encode($config, self::JSON_FLAGS));
+        $json =  json_encode($config, self::JSON_FLAGS);
+        return all([
+            $this->xAdd('ci-changes', 'MAXLEN', '~', 10000, '*', 'config', $json),
+            $this->hSet('ci', $ci, $json),
+        ]);
     }
 
     public function deferCi($ci, $reason = null)
@@ -239,7 +242,7 @@ class RedisPerfDataApi
 
     public function fetchDeferred()
     {
-        return $this->getHash('deferred-ci');
+        return $this->fetchSetAsArray('deferred-ci');
     }
 
     protected function hSet($hash, $key, $value)
@@ -249,10 +252,17 @@ class RedisPerfDataApi
         });
     }
 
-    protected function getHash($key)
+    protected function xAdd($stream, ...$args)
+    {
+        return $this->getRedisConnection()->then(function (RedisClient $client) use ($stream, $args) {
+            return $client->xadd($this->prefix . $stream, ...$args);
+        });
+    }
+
+    protected function fetchSetAsArray($key)
     {
         return $this->getRedisConnection()->then(function (RedisClient $client) use ($key) {
-            return $client->hgetall($this->prefix . $key)->then([RedisUtil::class, 'makeHash']);
+            return $client->hgetall($this->prefix . $key)->then([RedisUtil::class, 'makeArray']);
         });
     }
 

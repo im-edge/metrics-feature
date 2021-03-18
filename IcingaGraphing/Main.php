@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use Exception;
 use gipfl\Log\Filter\LogLevelFilter;

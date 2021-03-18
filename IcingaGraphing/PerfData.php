@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use InvalidArgumentException;
 use JsonSerializable;

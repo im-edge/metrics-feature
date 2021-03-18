@@ -1,15 +1,17 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
+use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\DsList;
 use gipfl\RrdTool\RraSet;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use gipfl\RrdTool\RrdInfo;
 use gipfl\RrdTool\SampleRraSet;
-use iPerGraph\NamingStrategy\DefaultNamingStrategy;
+use IcingaGraphing\NamingStrategy\DefaultNamingStrategy;
 use Psr\Log\LoggerInterface;
 use React\Promise;
+use RuntimeException;
 use function addcslashes;
 use function array_flip;
 use function array_keys;
@@ -27,16 +29,35 @@ class Store
     /** @var RrdCachedClient */
     protected $rrdCached;
 
+    /** @var AsyncRrdtool */
+    protected $rrdTool;
+
     protected $naming;
 
     protected $logger;
 
-    public function __construct(RedisPerfDataApi $redisApi, RrdCachedClient $rrdCached, LoggerInterface $logger)
-    {
+    public function __construct(
+        RedisPerfDataApi $redisApi,
+        RrdCachedClient $rrdCached,
+        AsyncRrdtool $rrdtool,
+        LoggerInterface $logger
+    ) {
         $this->redisApi = $redisApi;
         $this->logger = $logger;
+        $this->rrdTool = $rrdtool;
         $this->naming = new DefaultNamingStrategy($logger);
         $this->rrdCached = $rrdCached;
+    }
+
+    protected function prepareCiConfig($ci, PerfData $perfData, $base)
+    {
+        $filename = $this->naming->getFilename($ci);
+        return $this->rrdCached->info($filename)
+            ->then(function (RrdInfo $info) use ($ci, $perfData, $base) {
+                $keyValue = $perfData->getValues(); // Sicher?
+                $ds = $this->naming->prepareCiConfig($ci, $keyValue);
+
+            });
     }
 
     /**
@@ -47,7 +68,7 @@ class Store
      * @param $base 1 or 60 -> sec or min
      * @return mixed
      */
-    public function createCi($ci, PerfData $perfData, $base)
+    public function wantCi($ci, PerfData $perfData, $base)
     {
         $timestamp = $perfData->getTime();
 
@@ -92,11 +113,11 @@ class Store
         return $this->rrdCached->info($cfg->filename)
             ->then(function (RrdInfo $info) use ($ci, $cfg, $dsList) {
                 // echo "Got info for $filename\n";
-                $currentNames = array_flip($info->listDsNames());
+                $currentNameLookup = array_flip($info->listDsNames());
                 $newDs = [];
                 // TODO: compare type and other properties
                 foreach ($dsList as $ds) {
-                    if (! isset($currentNames[$ds->getName()])) {
+                    if (! isset($currentNameLookup[$ds->getName()])) {
                         $newDs[$ds->getName()] = $ds;
                     }
                 }
@@ -133,9 +154,15 @@ class Store
             // $rraSet = SampleRraSet::kickstartWithSeconds();
             $rraSet = SampleRraSet::pnpDefaults();
         }
+        $dirName = dirname($filename);
+        if (! is_dir($dirName)) {
+            if (!@mkdir($dirName, 0755, true) && !is_dir($dirName)) {
+                throw new RuntimeException("Unable to create '$dirName'");
+            }
+        }
 
         $cmd = sprintf(
-            "CREATE %s -s %d -b %d %s %s",
+            "create %s -s %d -b %d %s %s",
             addcslashes($filename, ' '), // TODO: check how to escape
             $step,
             $start,
@@ -144,7 +171,7 @@ class Store
         );
         $this->logger->debug("$cmd");
 
-        return $this->rrdCached->send($cmd);
+        return $this->rrdTool->send($cmd);
     }
 
     public function deferCi($ci, $filename)

@@ -1,6 +1,6 @@
 <?php
 
-namespace iPerGraph;
+namespace IcingaGraphing;
 
 use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
