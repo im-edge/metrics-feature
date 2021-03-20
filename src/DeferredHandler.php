@@ -7,6 +7,7 @@ use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
+use React\Promise\Deferred;
 use function count;
 use function ctype_digit;
 use function key;
@@ -29,6 +30,8 @@ class DeferredHandler
 
     protected $checking;
 
+    protected $rrdCached;
+
     // TODO
     // Infrastructure needs to be always ready,
     // if one of them fails eventually keep fetching stats
@@ -42,17 +45,22 @@ class DeferredHandler
     ) {
         $this->redisApi = $redisApi;
         $this->logger = $logger;
+        $this->rrdCached = $rrdCached;
         $this->store = new Store($redisApi, $rrdCached, $rrdtool, $logger);
     }
 
     public function run(LoopInterface $loop)
     {
         $this->loop = $loop;
-        $this->logger->info("DeferredHandler is ready to start");
-        $loop->addPeriodicTimer(1, function () {
-            if (! $this->checkForDeferred()) {
-                $this->logger->warning('Deferred check/handler is still running');
-            }
+        AsyncDependencies::waitFor('DeferredHandler', [
+            'Redis'     => $this->redisApi->getRedisConnection(),
+            'RrdCached' => $this->rrdCached->stats(),
+        ], 5, $loop, $this->logger)->then(function () {
+            $this->loop->addPeriodicTimer(1, function () {
+                if (! $this->checkForDeferred()) {
+                    $this->logger->warning('Deferred check/handler is still running');
+                }
+            });
         });
     }
 
