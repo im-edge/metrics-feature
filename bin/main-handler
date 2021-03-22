@@ -2,6 +2,7 @@
 <?php
 
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
+use IcingaGraphing\InstanceConfig;
 use IcingaGraphing\Main;
 use IcingaGraphing\MainUpdateHandler;
 use IcingaGraphing\RedisPerfDataApi;
@@ -9,10 +10,11 @@ use IcingaGraphing\RedisPerfDataApi;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
+$instanceConfig = new InstanceConfig($config->basedir);
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $instanceConfig->getRedisSocketUri());
 $redis->setClientName('IcingaGraphing::main');
-$rrdCached = new RrdCachedClient($config->rrdcached->socket, $main->getLoop());
+$rrdCached = new RrdCachedClient($instanceConfig->getRrdCachedSocket(), $main->getLoop());
 $deferredHandler = new MainUpdateHandler($redis, $rrdCached, $main->getLogger());
 $deferredHandler->run($main->getLoop());
 $main->startLoop();

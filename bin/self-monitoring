@@ -1,6 +1,7 @@
 #!/usr/bin/php
 <?php
 
+use IcingaGraphing\InstanceConfig;
 use IcingaGraphing\Main;
 use IcingaGraphing\RedisPerfDataApi;
 use IcingaGraphing\SelfMonitoring;
@@ -8,8 +9,9 @@ use IcingaGraphing\SelfMonitoring;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
+$instanceConfig = new InstanceConfig($config->basedir);
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $instanceConfig->getRedisSocketUri());
 $redis->setClientName('IcingaGraphing::self-monitoring');
 $monitor = new SelfMonitoring($main->getLoop(), $redis, $main->getLogger());
 $monitor->on('perfData', [$redis, 'shipPerfData']);

@@ -2,6 +2,7 @@
 <?php
 
 use IcingaGraphing\IcingaStreamer;
+use IcingaGraphing\InstanceConfig;
 use IcingaGraphing\Main;
 use IcingaGraphing\RedisPerfDataApi;
 
@@ -9,7 +10,8 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$instanceConfig = new InstanceConfig($config->basedir);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $instanceConfig->getRedisSocketUri());
 $redis->setClientName('IcingaGraphing::icinga-stream');
 $icinga = new IcingaStreamer($main->getLoop(), $main->getLogger(), $config->icinga);
 $icinga->on('perfData', [$redis, 'shipPerfData']);

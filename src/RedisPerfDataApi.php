@@ -45,11 +45,11 @@ class RedisPerfDataApi
 
     protected $clientName = 'IcingaGraphing';
 
-    public function __construct(LoopInterface $loop, LoggerInterface $logger, $redisConfig)
+    public function __construct(LoopInterface $loop, LoggerInterface $logger, $redisSocketUri)
     {
         $this->loop = $loop;
         $this->logger = $logger;
-        $this->socketUri = 'redis+unix://' . $redisConfig->socket;
+        $this->socketUri = $redisSocketUri;
         $this->luaDir = dirname(__DIR__) . '/lua';
     }
 
@@ -75,7 +75,6 @@ class RedisPerfDataApi
                 $this->redis = $client;
                 $deferred->resolve($client);
             });
-            return $this->redis;
         }
 
         return resolve($this->redis);
@@ -88,6 +87,7 @@ class RedisPerfDataApi
     {
         if ($this->lua === null) {
             $deferred = new Deferred();
+            $this->lua = $deferred->promise();
             $this->getRedisConnection()->then(function (RedisClient $client) use ($deferred) {
                 $lua = new LuaScriptRunner($client, $this->luaDir);
                 $lua->setLogger($this->logger);

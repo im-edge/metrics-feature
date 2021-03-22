@@ -3,14 +3,16 @@
 
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use IcingaGraphing\DeferredHandler;
+use IcingaGraphing\InstanceConfig;
 use IcingaGraphing\Main;
 use IcingaGraphing\RedisPerfDataApi;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';
 
+$instanceConfig = new InstanceConfig($config->basedir);
 $main = new Main();
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $config->redis);
+$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $instanceConfig->getRedisSocketUri());
 $redis->setClientName('IcingaGraphing::deferred');
 $rrdCached = new RrdCachedClient($config->rrdcached->socket, $main->getLoop());
 $deferredHandler = new DeferredHandler($redis, $rrdCached, $main->getLogger());
