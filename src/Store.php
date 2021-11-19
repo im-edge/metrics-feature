@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\DsList;
@@ -8,7 +8,7 @@ use gipfl\RrdTool\RraSet;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use gipfl\RrdTool\RrdInfo;
 use gipfl\RrdTool\SampleRraSet;
-use IcingaGraphing\NamingStrategy\DefaultNamingStrategy;
+use IcingaMetrics\NamingStrategy\DefaultNamingStrategy;
 use Psr\Log\LoggerInterface;
 use React\Promise;
 use RuntimeException;

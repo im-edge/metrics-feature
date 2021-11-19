@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use Clue\React\Redis\Client as RedisClient;
 use Clue\React\Redis\Factory as RedisFactory;

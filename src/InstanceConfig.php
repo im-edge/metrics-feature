@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 class InstanceConfig
 {
@@ -28,6 +28,6 @@ class InstanceConfig
 
     public function getRrdCachedSocket() : string
     {
-        return $this->getBaseDir() . '/redis/redis.sock';
+        return $this->getBaseDir() . '/rrdcached/rrdcached.sock';
     }
 }

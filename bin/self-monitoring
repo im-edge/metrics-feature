@@ -1,10 +1,10 @@
 #!/usr/bin/php
 <?php
 
-use IcingaGraphing\InstanceConfig;
-use IcingaGraphing\Main;
-use IcingaGraphing\RedisPerfDataApi;
-use IcingaGraphing\SelfMonitoring;
+use IcingaMetrics\InstanceConfig;
+use IcingaMetrics\Main;
+use IcingaMetrics\RedisPerfDataApi;
+use IcingaMetrics\SelfMonitoring;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';

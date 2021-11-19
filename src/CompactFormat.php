@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use function abs;
 use function floor;
@@ -55,6 +55,11 @@ class CompactFormat
         ],
     ];
 
+    public static function decimal($value)
+    {
+        return self::compact($value, $standard = self::DECIMAL);
+    }
+
     public static function bits($value, $standard = self::DECIMAL)
     {
         return self::compact($value, $standard) . 'bit';
@@ -96,7 +101,7 @@ class CompactFormat
             if ($standard === self::BINARY) {
                 $result = 0;
                 $exponent = 0;
-            } /** @noinspection NotOptimalIfConditionsInspection */ elseif (round($result) >= $base) {
+            } elseif (round($result) >= $base) {
                 $result /= $base;
                 $exponent--;
             }

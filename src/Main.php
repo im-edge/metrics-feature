@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use Exception;
 use gipfl\Log\Filter\LogLevelFilter;

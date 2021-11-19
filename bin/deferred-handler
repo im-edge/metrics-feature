@@ -1,11 +1,12 @@
 #!/usr/bin/php
 <?php
 
+use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
-use IcingaGraphing\DeferredHandler;
-use IcingaGraphing\InstanceConfig;
-use IcingaGraphing\Main;
-use IcingaGraphing\RedisPerfDataApi;
+use IcingaMetrics\DeferredHandler;
+use IcingaMetrics\InstanceConfig;
+use IcingaMetrics\Main;
+use IcingaMetrics\RedisPerfDataApi;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 $config = include __DIR__ . '/config.inc.php';

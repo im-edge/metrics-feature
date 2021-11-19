@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
@@ -26,8 +26,8 @@ class AsyncDependencies
         $deferred = new Deferred();
         $ready = [];
         $results = [];
-        $timer = $loop->addTimer($timeout, function () use ($subject, $logger) {
-            $logger->info("$subject is still waiting to start");
+        $timer = $loop->addTimer($timeout, function () use ($subject, $logger, $promises, &$ready) {
+            $logger->info("$subject is still waiting for: " . implode(', ', array_diff(array_keys($promises), array_keys($ready))));
         });
         $done = static function () use ($deferred, $timer, &$ready, &$results, $subject, $loop, $logger) {
             foreach ($ready as $name => $isReady) {
@@ -41,13 +41,16 @@ class AsyncDependencies
             $deferred->resolve($results);
         };
         foreach ($promises as $name => $promise) {
+            echo "Waiting for $name\n";
             assert($promise instanceof ExtendedPromiseInterface);
             $ready[$name] = false;
             $promise->then(function ($result) use (&$ready, &$results, $name, $done) {
                 $results[$name] = $result;
+                echo "$name is done\n";
                 $ready[$name] = true;
                 $done();
             }, function (\Throwable $e) use ($deferred) {
+                echo $e->getMessage() . "\n";
                 $deferred->reject($e);
             });
         }

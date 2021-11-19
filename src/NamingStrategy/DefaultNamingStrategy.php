@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing\NamingStrategy;
+namespace IcingaMetrics\NamingStrategy;
 
 use gipfl\RrdTool\Ds;
 use gipfl\RrdTool\DsList;

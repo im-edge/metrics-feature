@@ -1,6 +1,6 @@
 <?php
 
-namespace IcingaGraphing;
+namespace IcingaMetrics;
 
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
