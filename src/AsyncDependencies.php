@@ -3,53 +3,43 @@
 namespace IcingaMetrics;
 
 use Psr\Log\LoggerInterface;
-use React\EventLoop\LoopInterface;
+use React\EventLoop\Loop;
 use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
 
 class AsyncDependencies
 {
-    /** @var LoopInterface */
-    protected $loop;
-
-    /** @var LoggerInterface */
-    protected $logger;
-
-    public function __construct(
-        LoggerInterface $logger
-    ) {
-        $this->logger = $logger;
-    }
-
-    public static function waitFor($subject, array $promises, $timeout, LoopInterface $loop, LoggerInterface $logger)
+    public static function waitFor($subject, array $promises, $timeout, LoggerInterface $logger)
     {
         $deferred = new Deferred();
         $ready = [];
         $results = [];
-        $timer = $loop->addTimer($timeout, function () use ($subject, $logger, $promises, &$ready) {
-            $logger->info("$subject is still waiting for: " . implode(', ', array_diff(array_keys($promises), array_keys($ready))));
+        $timer = Loop::get()->addTimer($timeout, function () use ($subject, $promises, &$ready, $logger) {
+            $diff = array_diff(array_keys($promises), array_keys($ready));
+            if (! empty($diff)) {
+                $logger->info("$subject is still waiting for: " . implode(', ', $diff));
+            }
         });
-        $done = static function () use ($deferred, $timer, &$ready, &$results, $subject, $loop, $logger) {
+
+        $done = static function () use ($deferred, $timer, &$ready, &$results, $subject, $logger) {
             foreach ($ready as $name => $isReady) {
                 if (! $isReady) {
                     return;
                 }
             }
 
-            $loop->cancelTimer($timer);
+            Loop::get()->cancelTimer($timer);
             $logger->notice("$subject is ready");
             $deferred->resolve($results);
         };
         foreach ($promises as $name => $promise) {
-            echo "Waiting for $name\n";
+            $logger->info("Waiting for $name");
             assert($promise instanceof ExtendedPromiseInterface);
             $ready[$name] = false;
-            $promise->then(function ($result) use (&$ready, &$results, $name, $done) {
+            $promise->then(function ($result) use (&$ready, &$results, $name) {
                 $results[$name] = $result;
-                echo "$name is done\n";
                 $ready[$name] = true;
-                $done();
-            }, function (\Throwable $e) use ($deferred) {
+            })->then($done, function (\Throwable $e) use ($deferred) {
                 echo $e->getMessage() . "\n";
                 $deferred->reject($e);
             });
