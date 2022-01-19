@@ -29,13 +29,13 @@ JsonShipper.new = function(inventory, queue)
 
     local ciConfig = inventory.getCiConfig(ci)
     if ciConfig == nil then
-      inventory.defer(ci, data.dp, 'Unknown CI')
+      inventory.defer(ci, data.ts, data.dp, 'Unknown CI')
       return { 'status', 'deferred', 'reason', 'Unknown CI: ' .. ci }
     end
 
     local update, err = RrdCacheD.prepareUpdate(ciConfig, data)
     if err then
-      inventory.defer(ci, data.dp, err)
+      inventory.defer(ci, data.ts, data.dp, err)
       return { 'status', 'deferred', 'reason', 'Deferred "' .. ci .. '": ' .. err }
     end
 

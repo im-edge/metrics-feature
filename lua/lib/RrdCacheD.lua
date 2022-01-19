@@ -13,7 +13,7 @@ RrdCacheD.prepareValueString = function(ciConfig, perfData)
     for name, _ in pairs(perfData.dp) do
         if dsMap[name] == nil then
             -- will lead to deferral
-            return nil, 'Unknown DS name "' + name + '"'
+            return nil, 'Unknown DS name "' .. name .. '"'
         end
     end
 

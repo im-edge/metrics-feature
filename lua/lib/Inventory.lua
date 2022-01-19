@@ -44,10 +44,11 @@ Inventory.new = function(prefix)
         redis.call('HDEL', redisKeyDeferredCi, ci)
     end
 
-    function self.defer(ci, dataPoints, reason)
+    function self.defer(ci, ts, dataPoints, reason, dataTime)
         redis.call('HSET', redisKeyDeferredCi, ci, cjson.encode({
             deferredSince = time.now(),
             dataPoints = dataPoints,
+            ts = ts,
             reason = reason
         }))
     end
