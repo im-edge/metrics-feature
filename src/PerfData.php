@@ -2,41 +2,50 @@
 
 namespace IcingaMetrics;
 
+use gipfl\IcingaPerfData\Ci;
+use gipfl\IcingaPerfData\Measurement;
+use gipfl\Json\JsonString;
 use InvalidArgumentException;
 use JsonSerializable;
 use function is_float;
 use function is_int;
-use function json_decode;
-use function json_encode;
 use function time;
-use const JSON_PRESERVE_ZERO_FRACTION;
-use const JSON_UNESCAPED_SLASHES;
-use const JSON_UNESCAPED_UNICODE;
 
 class PerfData implements JsonSerializable
 {
-    const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION;
-
+    protected Ci $ci;
+    /** @var int|float|null */
     protected $timestamp;
+    protected array $values;
 
-    protected $ci;
-
-    protected $values;
-
-    public function __construct($ci, $values, $timestamp = null)
+    public function __construct(Ci $ci, array $values, $timestamp = null)
     {
         $this->ci = $ci;
         $this->values = $values;
         $this->timestamp = $timestamp;
     }
 
-    public function jsonSerialize()
+    public function jsonSerialize(): object
     {
-        return [
+        return (object) [
             'ts' => $this->timestamp,
-            'ci' => $this->ci,
+            'ci' => JsonString::encode($this->ci), // Encoded twice -> LUA
             'dp' => $this->values,
         ];
+    }
+
+    public static function fromMeasurement(Measurement $measurement): PerfData
+    {
+        $values = [];
+        foreach ($measurement->getMetrics() as $metric) {
+            if ($metric->isCounter()) {
+                $values[$metric->getLabel()] = ((string) $metric->getValue()) . 'c';
+            } else {
+                $values[$metric->getLabel()] = $metric->getValue();
+            }
+        }
+
+        return new static($measurement->getCi(), $values, $measurement->getTimestamp() ?? time());
     }
 
     public function getTime()
@@ -54,20 +63,13 @@ class PerfData implements JsonSerializable
         throw new InvalidArgumentException('Timestamp expected, got: ' . var_export($this->timestamp, 1));
     }
 
-    public function getValues()
+    public function getCi(): Ci
+    {
+        return $this->ci;
+    }
+
+    public function getValues(): array
     {
         return $this->values;
-    }
-
-    public function toJson()
-    {
-        return json_encode($this, self::JSON_FLAGS);
-    }
-
-    public static function fromJson($string)
-    {
-        // TODO: Fail, use JSON class
-        $obj = json_decode($string, false);
-        return new static($obj->ci, $obj->dp, $obj->ts);
     }
 }
