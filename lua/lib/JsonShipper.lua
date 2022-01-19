@@ -4,6 +4,17 @@ local JsonShipper = {}
 JsonShipper.new = function(inventory, queue)
   local self = {}
 
+  function self.pushJsonBulk(rows)
+    local result = {}
+    local row
+    local _
+    for _, row in ipairs(rows) do
+      self.pushJson(row)
+    --  table.insert(result, self.pushData(row))
+    end
+    -- return result
+  end
+
   function self.pushJson(jsonString)
     local data = cjson.decode(jsonString)
     local ci = data.ci

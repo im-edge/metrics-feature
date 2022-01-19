@@ -4,7 +4,9 @@ namespace IcingaMetrics\NamingStrategy;
 
 use gipfl\RrdTool\Ds;
 use gipfl\RrdTool\DsList;
+use IcingaMetrics\CiConfig;
 use Psr\Log\LoggerInterface;
+use Ramsey\Uuid\Uuid;
 
 class DefaultNamingStrategy
 {
@@ -15,24 +17,12 @@ class DefaultNamingStrategy
         $this->logger = $logger;
     }
 
-    public function getFilename($ci)
+    public function prepareCiConfig($ci, $keyValue): CiConfig
     {
-        $checksum = sha1($ci);
-
-        return substr($checksum, 0, 2) . '/' . substr($checksum, 2, 2) . "/$checksum.rrd";
-        // $ci = preg_replace('/[\0-\31<>:"/\\\|?*]/u', '_', $ci);
-    }
-
-    public function prepareCiConfig($ci, $keyValue)
-    {
+        $uuid = Uuid::uuid4();
         $dsList = $this->getDataSourcesFor($keyValue);
         $map = array_combine(array_keys($keyValue), $dsList->listNames());
-        $filename = $this->getFilename($ci);
-        return (object) [
-            'filename' => $filename,
-            'dsNames'  => $dsList->listNames(),
-            'dsMap'    => $map,
-        ];
+        return CiConfig::create($uuid, $dsList->listNames(), $map);
     }
 
     /**
@@ -40,7 +30,7 @@ class DefaultNamingStrategy
      * @param DsList|null $formerDsList
      * @return DsList
      */
-    public function getDataSourcesFor($parts, DsList $formerDsList = null)
+    public function getDataSourcesFor(array $parts, DsList $formerDsList = null): DsList
     {
         $result = new DsList();
         if ($formerDsList) {
@@ -49,7 +39,7 @@ class DefaultNamingStrategy
         // TODO: Former mapping!!
         $seen = [];
         foreach ($parts as $originalName => list($type, $value)) {
-            $result->add(Ds::create($this->getDsNameFor($originalName, $seen), $type, 8640));
+            $result->add(new Ds($this->getDsNameFor($originalName, $seen), $type, 8640));
         }
 
         return $result;
@@ -80,7 +70,7 @@ class DefaultNamingStrategy
         return preg_replace('/_+/', '_', preg_replace('/\W/', '_', $name));
     }
 
-    protected function shorten($string, $length = 19)
+    protected function shorten(string $string, int $length = 19): string
     {
         return \mb_substr($string, 0, $length);
     }
