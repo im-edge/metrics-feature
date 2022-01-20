@@ -14,11 +14,11 @@ use function method_exists;
 
 trait DirectoryBasedComponent
 {
+    protected LoggerInterface $logger;
     protected string $baseDir;
     protected ?Settings $config = null;
-    protected LoggerInterface $logger;
     protected ?string $name = null;
-    protected UuidInterface $uuid;
+    protected ?UuidInterface $uuid = null;
 
     public function __construct(string $baseDir, LoggerInterface $logger)
     {
@@ -37,6 +37,23 @@ trait DirectoryBasedComponent
         }
     }
 
+    public function requireBeingConfigured()
+    {
+        $config = $this->config ?? $this->readOptionalConfig();
+        if ($config === null) {
+            throw new RuntimeException(sprintf(
+                'There is no configured %s in %s',
+                $this->getMyShortClassName(),
+                $this->getBaseDir()
+            ));
+        }
+        if ($this->uuid === null) {
+            $this->uuid = Uuid::fromString($config->getRequired('uuid'));
+        }
+        $this->name = $config->getRequired('name');
+        $this->config = $config;
+    }
+
     protected function requireConfig(): Settings
     {
         return $this->config = $this->readOptionalConfig() ?: $this->initializeNewNode();
@@ -49,7 +66,16 @@ trait DirectoryBasedComponent
 
     public function getUuid(): UuidInterface
     {
+        if ($this->uuid === null) {
+            $this->requireBeingConfigured();
+        }
+
         return $this->uuid;
+    }
+
+    protected function getMyShortClassName()
+    {
+        return substr(strrchr(get_class($this), '\\'), 1);
     }
 
     public function setName(string $name)
