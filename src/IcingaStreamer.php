@@ -4,36 +4,31 @@ namespace IcingaMetrics;
 
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
+use gipfl\DataType\Settings;
 use gipfl\IcingaApi\ApiEvent\CheckResultApiEvent;
 use gipfl\IcingaApi\IcingaStreamingClient;
 use gipfl\IcingaApi\ReactGlue\PeerCertificate;
+use gipfl\IcingaPerfData\Ci;
 use Psr\Log\LoggerInterface;
-use React\EventLoop\LoopInterface;
+use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
 
 class IcingaStreamer implements EventEmitterInterface
 {
     use EventEmitterTrait;
 
-    /** @var LoopInterface */
-    protected $loop;
+    protected IcingaStreamingClient $streamer;
+    protected LoggerInterface $logger;
 
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var IcingaStreamingClient */
-    protected $streamer;
-
-    public function __construct(LoopInterface $loop, LoggerInterface $logger, $icingaConfig)
+    public function __construct(LoggerInterface $logger, Settings $icingaConfig)
     {
-        $this->loop = $loop;
         $this->logger = $logger;
         $this->streamer = $streamer = new IcingaStreamingClient(
-            $loop,
-            $icingaConfig->host,
-            $icingaConfig->port,
-            $icingaConfig->user,
-            $icingaConfig->pass
+            Loop::get(),
+            $icingaConfig->get('host'),
+            (int) $icingaConfig->get('port', 5665),
+            $icingaConfig->get('user'),
+            $icingaConfig->get('pass')
         );
         $this->streamer->setLogger($logger);
         $streamer->filterTypes(['CheckResult']);
@@ -46,12 +41,6 @@ class IcingaStreamer implements EventEmitterInterface
             }
         });
         $streamer->on('checkResult', function (CheckResultApiEvent $result) {
-            $ciName = $result->getHost() . '!' . (
-                $result->isHost()
-                    ? '_HOST_'
-                    : $result->getService()
-                );
-            $this->logger->info($ciName);
             $checkResult = $result->getCheckResult();
             // $this->logger->info(print_r($checkResult->getCommand()));
             $points = $checkResult->getDataPoints();
@@ -60,14 +49,15 @@ class IcingaStreamer implements EventEmitterInterface
                 return;
             }
 
-            $values = (object) [];
+            $values = [];
             foreach ($points as $point) {
-                $values->{$point->getLabel()} = $point->getValue();
+                $values[$point->getLabel()] = $point->getValue();
             }
             // TODO: check_command as context?
-            $this->emit('perfData', [new PerfData($ciName, $values, $checkResult->getExecutionEnd())]);
+            $ci = new Ci($result->getHost(), $result->isHost() ? null : $result->getService());
+            $this->emit('perfData', [new PerfData($ci, $values, $checkResult->getExecutionEnd())]);
         });
-        $this->loop->futureTick(function () {
+        Loop::futureTick(function () {
             $this->logger->info('Initializing Icinga Streaming Client');
             $this->streamer->run();
         });
