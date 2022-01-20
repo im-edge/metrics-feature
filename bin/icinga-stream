@@ -11,8 +11,8 @@ $config = include __DIR__ . '/config.inc.php';
 
 $main = new Main();
 $instanceConfig = new InstanceConfig($config->basedir);
-$redis = new RedisPerfDataApi($main->getLoop(), $main->getLogger(), $instanceConfig->getRedisSocketUri());
+$redis = new RedisPerfDataApi($main->getLogger(), $instanceConfig->getRedisSocketUri());
 $redis->setClientName('IcingaGraphing::icinga-stream');
-$icinga = new IcingaStreamer($main->getLoop(), $main->getLogger(), $config->icinga);
+$icinga = new IcingaStreamer($main->getLogger(), $config->icinga);
 $icinga->on('perfData', [$redis, 'shipPerfData']);
 $main->startLoop();
