@@ -5,18 +5,19 @@ namespace IcingaMetrics;
 use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerInterface;
-use React\EventLoop\LoopInterface;
+use React\EventLoop\Loop;
+use React\Promise\ExtendedPromiseInterface;
 use RuntimeException;
 
 class MainUpdateHandler
 {
+    /** @var RedisPerfDataApi */
     protected $redisApi;
 
-    /** @var LoopInterface */
-    protected $loop;
-
+    /** @var LoggerInterface */
     protected $logger;
 
+    /** @var RrdCachedClient */
     protected $rrdCached;
 
     protected $position;
@@ -48,15 +49,14 @@ class MainUpdateHandler
         };
     }
 
-    public function run(LoopInterface $loop)
+    public function run()
     {
-        $this->loop = $loop;
         $this->startupTime = microtime(true);
         $this->logger->info("MainUpdateHandler is starting");
         $this->fetchLastPosition()->then($this->funcFetchNext);
     }
 
-    protected function fetchLastPosition()
+    protected function fetchLastPosition(): ExtendedPromiseInterface
     {
         return $this->redisApi->fetchLastPosition()->then(function ($position) {
             $this->setInitialPosition($position);
@@ -76,7 +76,7 @@ class MainUpdateHandler
 
     protected function scheduleNextFetch()
     {
-        $this->loop->futureTick($this->funcFetchNext);
+        Loop::get()->futureTick($this->funcFetchNext);
     }
 
     /**
@@ -152,18 +152,25 @@ class MainUpdateHandler
         foreach ($result as $pos => $error) {
             // rrdCached starts counting with 1
             $realPos = $pos - 1;
-            $failedLine = isset($stream[$realPos][1][1])
-                ? $stream[$realPos][1][1]
-                : '<unknown line>';
+            $failedLine = $stream[$realPos][1][1] ?? '<unknown line>';
 
-            if (strpos($error, 'minimum one second step') === false) {
+            if (strpos($error, 'No such file') !== false) {
+                $filename = substr($failedLine, 0, strpos($failedLine, ' '));
+                // $this->redisApi->deferCi()
+                $this->logger->debug(sprintf(
+                    'RRDCacheD rejected for missing file "%s": %s',
+                    $failedLine,
+                    $error
+                ));
+                // $this->redisApi->deferCi()
+            } elseif (strpos($error, 'minimum one second step') !== false) {
+                $stepError++;
+            } else {
                 $this->logger->debug(sprintf(
                     'RRDCacheD rejected "%s": %s',
                     $failedLine,
                     $error
                 ));
-            } else {
-                $stepError++;
             }
         }
         if ($stepError > 0) {
@@ -185,7 +192,7 @@ class MainUpdateHandler
         }
     }
 
-    protected function readNextBatch()
+    protected function readNextBatch(): ExtendedPromiseInterface
     {
         $blockMs = $this->startingUp ? '25' : '1000';
         return $this->redisApi->fetchBatchFromStream($this->position, 1000, $blockMs);
