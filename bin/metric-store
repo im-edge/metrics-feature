@@ -1,0 +1,27 @@
+#!/usr/bin/php
+<?php
+
+use GetOpt\ArgumentException;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+use IcingaMetrics\MetricStore;
+use React\EventLoop\Loop;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+error_reporting(E_ALL | E_STRICT);
+$logger = include __DIR__ . '/logger.inc.php';
+
+$options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
+$options->addOperand(Operand::create('directory', Operand::REQUIRED));
+try {
+    $options->process();
+} catch (ArgumentException $e) {
+    echo $options->getHelpText();
+    exit(1);
+}
+
+$metrics = new MetricStore($options->getOperand('directory'), $logger);
+$metrics->setName('benchmark');
+$metrics->run();
+Loop::run();
