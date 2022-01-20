@@ -4,27 +4,35 @@ namespace IcingaMetrics;
 
 use Clue\React\Redis\Client as RedisClient;
 use Clue\React\Redis\Factory as RedisFactory;
+use Evenement\EventEmitterInterface;
+use Evenement\EventEmitterTrait;
 use Exception;
+use gipfl\Json\JsonString;
 use gipfl\ReactUtils\RetryUnless;
 use gipfl\RedisUtils\LuaScriptRunner;
 use gipfl\RedisUtils\RedisUtil;
+use gipfl\RrdTool\DsList;
+use gipfl\RrdTool\RraSet;
 use Psr\Log\LoggerInterface;
-use React\EventLoop\LoopInterface;
+use React\EventLoop\Loop;
 use React\Promise\Deferred;
 use React\Promise\ExtendedPromiseInterface;
 use function React\Promise\all;
 use function React\Promise\reject;
 use function React\Promise\resolve;
-use function current;
-use function json_encode;
 use function time;
 
-class RedisPerfDataApi
+class RedisPerfDataApi implements EventEmitterInterface
 {
-    const JSON_FLAGS = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION;
+    use EventEmitterTrait;
 
-    /** @var LoopInterface */
-    protected $loop;
+    const ON_STRAIN_START = 'strain_start';
+
+    const ON_STRAIN_END = 'strain_end';
+
+    const STRAIN_START = 100000;
+
+    const STRAIN_END = 5000;
 
     /** @var LoggerInterface */
     protected $logger;
@@ -45,9 +53,12 @@ class RedisPerfDataApi
 
     protected $clientName = 'IcingaGraphing';
 
-    public function __construct(LoopInterface $loop, LoggerInterface $logger, $redisSocketUri)
+    protected $cntPending = 0;
+
+    protected $isStrain = false;
+
+    public function __construct(LoggerInterface $logger, $redisSocketUri)
     {
-        $this->loop = $loop;
         $this->logger = $logger;
         $this->socketUri = $redisSocketUri;
         $this->luaDir = dirname(__DIR__) . '/lua';
@@ -66,15 +77,19 @@ class RedisPerfDataApi
     /**
      * @return ExtendedPromiseInterface
      */
-    public function getRedisConnection()
+    public function getRedisConnection(): ExtendedPromiseInterface
     {
         if ($this->redis === null) {
+            $this->logger->debug('Initiating a new Redis connection');
             $deferred = new Deferred();
             $this->redis = $deferred->promise();
             $this->keepConnectingToRedis()->then(function (RedisClient $client) use ($deferred) {
                 $this->redis = $client;
                 $deferred->resolve($client);
             });
+        }
+        if (! $this->redis instanceof RedisClient) {
+            $this->logger->info('Redis is still a ' . get_class($this->redis));
         }
 
         return resolve($this->redis);
@@ -83,7 +98,7 @@ class RedisPerfDataApi
     /**
      * @return ExtendedPromiseInterface
      */
-    public function getLuaRunner()
+    public function getLuaRunner(): ExtendedPromiseInterface
     {
         if ($this->lua === null) {
             $deferred = new Deferred();
@@ -99,11 +114,55 @@ class RedisPerfDataApi
         return resolve($this->lua);
     }
 
-    public function shipPerfData(PerfData $perfData)
+    protected function incPending($count = 1)
     {
+        $this->cntPending += $count;
+        // $this->logger->debug('Pending: ' . $this->cntPending . ' after ' . $count);
+        if ($this->isStrain) {
+            if ($this->cntPending < self::STRAIN_END) {
+                $this->isStrain = false;
+                $this->emit(self::ON_STRAIN_END, [$this->cntPending]);
+            }
+        } else {
+            if ($this->cntPending >= self::STRAIN_START) {
+                $this->isStrain = true;
+                $this->emit(self::ON_STRAIN_START, [$this->cntPending]);
+            }
+        }
+    }
+
+    public function shipPerfData(PerfData $perfData): ExtendedPromiseInterface
+    {
+        $this->incPending();
         return $this->getLuaRunner()->then(function (LuaScriptRunner $lua) use ($perfData) {
-            $lua->runScript('shipPerfData', [$perfData->toJson()]) // TODO: ship prefix
-            ->then([RedisUtil::class, 'makeHash'], function (Exception $e) {
+            $lua->runScript('shipPerfData', [JsonString::encode($perfData)]) // TODO: ship prefix
+            ->then([RedisUtil::class, 'makeHash'])->then(function ($result) {
+                $this->incPending(-1);
+                return $result;
+            }, function (Exception $e) {
+                $this->incPending(-1);
+                $this->logger->error($e->getMessage());
+                return $e;
+            });
+        });
+    }
+
+    /**
+     * @param PerfData[] $perfDataList
+     * @return ExtendedPromiseInterface
+     */
+    public function shipBulkPerfData(array $perfDataList): ExtendedPromiseInterface
+    {
+        $count = count($perfDataList);
+        $this->incPending($count);
+        return $this->getLuaRunner()->then(function (LuaScriptRunner $lua) use ($perfDataList, $count) {
+            // TODO: ship prefix?!
+            $lua->runScript('shipBulkPerfData', array_map([JsonString::class, 'encode'], $perfDataList))
+            ->then([RedisUtil::class, 'makeHash'])->then(function ($result) use ($count) {
+                $this->incPending(-$count);
+                return $result;
+            }, function (Exception $e) use ($count) {
+                $this->incPending(-$count);
                 $this->logger->error($e->getMessage());
                 return $e;
             });
@@ -119,21 +178,22 @@ class RedisPerfDataApi
             });
         })->slowDownAfter(10, 5);
         $retry->setLogger($this->logger);
-        $retry->run($this->loop);
+        $retry->run(Loop::get());
 
         return $deferred->promise();
     }
 
     public function connectToRedis()
     {
-        $factory = new RedisFactory($this->loop);
+        $factory = new RedisFactory(Loop::get());
         return $factory
             ->createClient($this->socketUri)
             ->then(function (RedisClient $client) {
                 return $this->redisIsReady($client);
             }, function (Exception $e) {
+                $this->logger->error('Connection error: ' . $e->getMessage());
                 if ($previous = $e->getPrevious()) {
-                    throw new \RuntimeException($e->getMessage() . ': ' . $e->getPrevious()->getMessage(), 0, $e);
+                    throw new \RuntimeException($e->getMessage() . ': ' . $previous->getMessage(), 0, $e);
                 }
 
                 throw $e;
@@ -142,54 +202,90 @@ class RedisPerfDataApi
 
     public function getCounters()
     {
-        if ($this->redis instanceof RedisClient) {
-            return $this->redis->hgetall($this->prefix . 'counters')
-                ->then(function ($result) {
-                    if (empty($result)) {
-                        return reject();
-                    }
-                    return RedisUtil::makeHash($result);
-                });
-        }
-
-        return reject();
-    }
-
-    public function fetchBatchFromStream($position, $maxCount, $blockMs)
-    {
-        return $this->getRedisConnection()->then(function (RedisClient $client) use ($position, $maxCount, $blockMs) {
-            return $client->xread(
-                'COUNT',
-                (string) $maxCount,
-                'BLOCK',
-                (string) $blockMs,
-                'STREAMS',
-                $this->prefix . 'stream',
-                $position
-            );
+        return $this->getRedisConnection()->then(function (RedisClient $redis) {
+            return $redis->hgetall($this->prefix . 'counters');
+        })->then(function ($result) {
+            if (empty($result)) {
+                return reject(new Exception('Redis currently has no counters'));
+            }
+            return RedisUtil::makeHash($result);
         });
     }
 
-    public function fetchLastPosition()
+    public function readFromStream($stream, $position, $maxCount, $blockMs): ExtendedPromiseInterface
+    {
+        return $this->getRedisConnection()
+            ->then(function (RedisClient $client) use ($position, $maxCount, $blockMs, $stream) {
+                return $client->xread(
+                    'COUNT',
+                    (string) $maxCount,
+                    'BLOCK',
+                    (string) $blockMs,
+                    'STREAMS',
+                    $stream,
+                    $position
+                );
+            });
+    }
+
+    public function fetchBatchFromStream($position, $maxCount, $blockMs): ExtendedPromiseInterface
+    {
+        return $this->readFromStream($this->prefix . 'stream', $position, $maxCount, $blockMs);
+    }
+
+    public function fetchLastPosition(): ExtendedPromiseInterface
     {
         return $this->getRedisConnection()->then(function ($client) {
             return $client->get($this->prefix . 'stream-last-pos');
         });
     }
 
-    public function setLastPosition($position)
+    public function setLastPosition($position): ExtendedPromiseInterface
     {
         return $this->getRedisConnection()->then(function (RedisClient $client) use ($position) {
             return $client->set($this->prefix . 'stream-last-pos', $position);
         });
     }
 
-    public function setCiConfig($ci, $config)
+    public function fetchBatchFromCiUpdateStream($position, $maxCount, $blockMs): ExtendedPromiseInterface
+    {
+        return $this->readFromStream($this->prefix . 'ci-changes', $position, $maxCount, $blockMs);
+    }
+
+    public function fetchLastCiUpdatePosition(): ExtendedPromiseInterface
+    {
+        return $this->getRedisConnection()->then(function ($client) {
+            return $client->get($this->prefix . 'ci-stream-last-pos');
+        });
+    }
+
+    public function setLastCiUpdatePosition($position): ExtendedPromiseInterface
+    {
+        return $this->getRedisConnection()->then(function (RedisClient $client) use ($position) {
+            return $client->set($this->prefix . 'ci-stream-last-pos', $position);
+        });
+    }
+
+    public function setCiConfig($ci, CiConfig $config, DsList $dsList, RraSet $rraSet)
     {
         $this->logger->debug("Registering $ci in Redis");
-        $json =  json_encode($config, self::JSON_FLAGS);
+        $json =  JsonString::encode($config);
         return all([
-            $this->xAdd('ci-changes', 'MAXLEN', '~', 10000, '*', 'config', $json),
+            $this->xAdd(
+                'ci-changes',
+                'MAXLEN',
+                '~',
+                10000,
+                '*',
+                'ci',
+                $ci,
+                'config',
+                $json,
+                'ds',
+                (string) $dsList,
+                'rra',
+                (string) $rraSet
+            ),
             $this->hSet('ci', $ci, $json),
         ]);
     }
@@ -199,7 +295,7 @@ class RedisPerfDataApi
         if ($reason === null) {
             $value = time();
         } else {
-            $value = json_encode([
+            $value = JsonString::encode([
                 'reason' => $reason,
                 'since'  => time()
             ]);
@@ -207,62 +303,36 @@ class RedisPerfDataApi
         return $this->hSet('deferred-cids', $ci, $value);
     }
 
-    public function getFirstDeferredPerfDataForCi($ci)
-    {
-        $key = $this->prefix . "deferred:$ci";
-        return $this->getRedisConnection()
-            ->then(function (RedisClient $client) use ($ci, $key) {
-                return $client->xlen($key)->then(function ($count) use ($ci, $key, $client) {
-                    if ($count === 0) {
-                        $this->logger->debug("DeferredHandler: there are no pending values for $ci");
-                        return null;
-                    }
-
-                    $this->logger->debug("DeferredHandler: there are $count values for $ci, getting first one");
-                    return $client->xrange($key, '-', '+', 'COUNT', '1');
-                });
-            })->then(function ($streamResult) use ($ci) {
-                if ($streamResult === null) {
-                    $this->logger->info("'$ci' was deferred, but had no performance data. Freeing.");
-                    $this->rescheduleDeferredCi($ci);
-                    return null;
-                }
-
-                // We fetched only one row
-                return PerfData::fromJson(current($streamResult)[1][1]);
-            });
-    }
-
-    public function rescheduleDeferredCi($ci)
+    public function rescheduleDeferredCi($ci): ExtendedPromiseInterface
     {
         return $this->getLuaRunner()->then(function (LuaScriptRunner $lua) use ($ci) {
             return $lua->runScript('rescheduleDeferredCi', [$ci]);
         });
     }
 
-    public function fetchDeferred()
+    public function fetchDeferred(): ExtendedPromiseInterface
     {
         return $this->fetchSetAsArray('deferred-ci');
     }
 
-    protected function hSet($hash, $key, $value)
+    protected function hSet($hash, $key, $value): ExtendedPromiseInterface
     {
         return $this->getRedisConnection()->then(function (RedisClient $client) use ($hash, $key, $value) {
             return $client->hset($this->prefix . $hash, $key, $value);
         });
     }
 
-    protected function xAdd($stream, ...$args)
+    protected function xAdd($stream, ...$args): ExtendedPromiseInterface
     {
         return $this->getRedisConnection()->then(function (RedisClient $client) use ($stream, $args) {
             return $client->xadd($this->prefix . $stream, ...$args);
         });
     }
 
-    protected function fetchSetAsArray($key)
+    protected function fetchSetAsArray($key): ExtendedPromiseInterface
     {
         return $this->getRedisConnection()->then(function (RedisClient $client) use ($key) {
-            return $client->hgetall($this->prefix . $key)->then([RedisUtil::class, 'makeArray']);
+            return $client->hgetall($this->prefix . $key)->then([RedisUtil::class, 'makeHash']);
         });
     }
 
@@ -272,10 +342,12 @@ class RedisPerfDataApi
             $this->logger->info('Redis ended');
         });
         $client->on('error', function (Exception $e) {
+            $this->redis = null;
             $this->logger->error('Redis error: ' . $e->getMessage());
         });
 
         $client->on('close', function () {
+            $this->redis = null;
             $this->logger->info('Redis closed');
         });
 
