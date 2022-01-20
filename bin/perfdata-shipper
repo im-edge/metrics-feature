@@ -1,0 +1,55 @@
+#!/usr/bin/php
+<?php
+
+use GetOpt\ArgumentException;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+use gipfl\IcingaPerfData\Measurement;
+use IcingaMetrics\MetricStore;
+use IcingaMetrics\PerfData;
+use IcingaMetrics\PerfDataShipper;
+use IcingaMetrics\RedisPerfDataApi;
+use React\EventLoop\Loop;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+error_reporting(E_ALL | E_STRICT);
+$logger = include __DIR__ . '/logger.inc.php';
+
+$options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
+$options->addOperand(Operand::create('store', Operand::REQUIRED));
+$options->addOperand(Operand::create('spool', Operand::REQUIRED));
+try {
+    $options->process();
+} catch (ArgumentException $e) {
+    echo $options->getHelpText();
+    exit(1);
+}
+
+$metrics = new MetricStore($options->getOperand('store'), $logger);
+$metrics->requireBeingConfigured();
+
+Loop::futureTick(function () use ($metrics, $logger, $options) {
+    $redis = new RedisPerfDataApi($logger, $metrics->getRedisSocketUri());
+    $redis->setClientName('IcingaMetrics::perfdataShipper');
+    $perf = new PerfDataShipper($logger, $options->getOperand('spool'));
+    $redis->on(RedisPerfDataApi::ON_STRAIN_START, function ($count) use ($perf, $logger) {
+        $logger->notice(sprintf('%d items waiting for Redis, pause reading', $count));
+        $perf->pause();
+    });
+    $redis->on(RedisPerfDataApi::ON_STRAIN_END, function ($count) use ($perf, $logger) {
+        $logger->notice(sprintf('%d items waiting for Redis, resume reading', $count));
+        $perf->resume();
+    });
+    $perf->on(PerfDataShipper::ON_MEASUREMENT, function (Measurement $measurement) use ($redis) {
+        $redis->shipPerfData(PerfData::fromMeasurement($measurement));
+    });
+    $perf->on(PerfDataShipper::ON_MEASUREMENTS, function (array $measurements) use ($redis) {
+        $perfData = [];
+        foreach ($measurements as $measurement) {
+            $perfData[] = PerfData::fromMeasurement($measurement);
+        }
+        $redis->shipBulkPerfData($perfData)->done();
+    });
+    $perf->run();
+});
+Loop::run();
