@@ -57,9 +57,9 @@ class PerfDataShipper implements EventEmitterInterface
     protected array $files = [];
     protected ?int $currentIdx = null;
 
-    protected $paused = false;
+    protected bool $paused = false;
 
-    public function __construct(LoggerInterface $logger, $dir)
+    public function __construct(LoggerInterface $logger, string $dir)
     {
         $this->logger = $logger;
         $this->dir = $dir;
