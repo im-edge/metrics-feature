@@ -1,6 +1,9 @@
 #!/usr/bin/php
 <?php
 
+/**
+ * @deprecated
+ */
 use IcingaMetrics\IcingaStreamer;
 use IcingaMetrics\InstanceConfig;
 use IcingaMetrics\Main;
