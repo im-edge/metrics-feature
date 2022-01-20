@@ -10,8 +10,7 @@ use gipfl\RrdTool\RrdInfo;
 use gipfl\RrdTool\SampleRraSet;
 use IcingaMetrics\NamingStrategy\DefaultNamingStrategy;
 use Psr\Log\LoggerInterface;
-use React\Promise;
-use RuntimeException;
+use React\Promise\ExtendedPromiseInterface;
 use function addcslashes;
 use function array_flip;
 use function array_keys;
@@ -20,7 +19,6 @@ use function implode;
 use function sprintf;
 use function substr;
 
-// TODO: remove echo/print
 class Store
 {
     /** @var RedisPerfDataApi */
@@ -49,26 +47,15 @@ class Store
         $this->rrdCached = $rrdCached;
     }
 
-    protected function prepareCiConfig($ci, PerfData $perfData, $base)
-    {
-        $filename = $this->naming->getFilename($ci);
-        return $this->rrdCached->info($filename)
-            ->then(function (RrdInfo $info) use ($ci, $perfData, $base) {
-                $keyValue = $perfData->getValues(); // Sicher?
-                $ds = $this->naming->prepareCiConfig($ci, $keyValue);
-
-            });
-    }
-
     /**
      * TODO: I tend to
      *
      * @param $ci
      * @param PerfData $perfData
      * @param $base 1 or 60 -> sec or min
-     * @return mixed
+     * @return ExtendedPromiseInterface
      */
-    public function wantCi($ci, PerfData $perfData, $base)
+    public function wantCi($ci, PerfData $perfData, $base): ExtendedPromiseInterface
     {
         $timestamp = $perfData->getTime();
 
@@ -101,7 +88,7 @@ class Store
             'dsMap'    => $map,
         ];
         */
-        $cfg = $this->naming->prepareCiConfig($ci, $keyValue);
+        $ciConfig = $this->naming->prepareCiConfig($ci, $keyValue);
 
         // CREATE filename [-s stepsize] [-b begintime] [-O] DSdefinitions ... RRAdefinitions ...
         //
@@ -109,10 +96,8 @@ class Store
         // provided the parameters are valid, and (if the -O option is given
         // or if the rrdcached was started with the -O flag) the specified
         // filename does not already exist.
-
-        return $this->rrdCached->info($cfg->filename)
-            ->then(function (RrdInfo $info) use ($ci, $cfg, $dsList) {
-                // echo "Got info for $filename\n";
+        return $this->rrdCached->info($ciConfig->filename)
+            ->then(function (RrdInfo $info) use ($ci, $ciConfig, $dsList) {
                 $currentNameLookup = array_flip($info->listDsNames());
                 $newDs = [];
                 // TODO: compare type and other properties
@@ -125,18 +110,21 @@ class Store
                     // $rrdtool->run("tune $file $tuning", false);
                     $this->logger->debug(sprintf(
                         "Tuning %s (not yet): %s\n",
-                        $cfg->filename,
+                        $ciConfig->filename,
                         implode(', ', array_keys($newDs))
                     ));
                 }
 
-                return $this->redisApi->setCiConfig($ci, $cfg);
-            })->otherwise(function () use ($cfg, $step, $start, $dsList, $ci) {
-                $filename = $cfg->filename;
-                $this->logger->debug("Got NO info for $filename, creating the file\n");
-                return $this->createFile($filename, $step, $start, $dsList)->then(function () use ($ci, $cfg) {
-                    return $this->redisApi->setCiConfig($ci, $cfg);
-                });
+                return $this->redisApi->setCiConfig($ci, $ciConfig, $dsList, $info->getRraSet());
+            }, function () use ($ciConfig, $step, $start, $dsList, $ci) {
+                $filename = $ciConfig->filename;
+                // $this->logger->debug("Creating $filename: $step $start, " . $dsList);
+                // $rraSet = SampleRraSet::kickstartWithSeconds();
+                $rraSet = SampleRraSet::pnpDefaults();
+                return $this->createFile($filename, $step, $start, $dsList, $rraSet)
+                    ->then(function () use ($ci, $ciConfig, $dsList, $rraSet) {
+                        return $this->redisApi->setCiConfig($ci, $ciConfig, $dsList, $rraSet);
+                    });
             });
     }
 
@@ -146,20 +134,21 @@ class Store
      * @param $start
      * @param DsList $dsList
      * @param RraSet|null $rraSet
-     * @return Promise\Promise
+     * @return ExtendedPromiseInterface
      */
-    protected function createFile($filename, $step, $start, DsList $dsList, RraSet $rraSet = null)
-    {
+    protected function createFile(
+        string $filename,
+        int $step,
+        int $start,
+        DsList $dsList,
+        RraSet $rraSet = null
+    ): ExtendedPromiseInterface {
         if ($rraSet === null) {
             // $rraSet = SampleRraSet::kickstartWithSeconds();
             $rraSet = SampleRraSet::pnpDefaults();
         }
         $dirName = dirname($filename);
-        if (! is_dir($dirName)) {
-            if (!@mkdir($dirName, 0755, true) && !is_dir($dirName)) {
-                throw new RuntimeException("Unable to create '$dirName'");
-            }
-        }
+        FilesystemUtil::requireDirectory($dirName, true);
 
         $cmd = sprintf(
             "create %s -s %d -b %d %s %s",
@@ -169,7 +158,6 @@ class Store
             $dsList,
             $rraSet
         );
-        $this->logger->debug("$cmd");
 
         return $this->rrdTool->send($cmd);
     }
