@@ -14,20 +14,11 @@ use function method_exists;
 
 trait DirectoryBasedComponent
 {
-    /** @var string */
-    protected $baseDir;
-
-    /** @var Settings */
-    protected $config;
-
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var string */
-    protected $name;
-
-    /** @var UuidInterface */
-    protected $uuid;
+    protected string $baseDir;
+    protected ?Settings $config = null;
+    protected LoggerInterface $logger;
+    protected ?string $name = null;
+    protected UuidInterface $uuid;
 
     public function __construct(string $baseDir, LoggerInterface $logger)
     {
@@ -46,7 +37,7 @@ trait DirectoryBasedComponent
         }
     }
 
-    protected function requireConfig() : Settings
+    protected function requireConfig(): Settings
     {
         return $this->config = $this->readOptionalConfig() ?: $this->initializeNewNode();
     }
@@ -56,7 +47,7 @@ trait DirectoryBasedComponent
         return $this->baseDir;
     }
 
-    public function getUuid() : UuidInterface
+    public function getUuid(): UuidInterface
     {
         return $this->uuid;
     }
@@ -70,7 +61,7 @@ trait DirectoryBasedComponent
         }
     }
 
-    public function getName() : string
+    public function getName(): string
     {
         if ($this->name === null) {
             if (method_exists($this, 'generateName')) {
@@ -83,7 +74,7 @@ trait DirectoryBasedComponent
         return $this->name;
     }
 
-    protected function readOptionalConfig() : ?Settings
+    protected function readOptionalConfig(): ?Settings
     {
         $configFile = $this->getConfigDir() . '/' . $this->getConfigFileName();
         if (@file_exists($configFile) && @is_readable($configFile)) {
@@ -112,7 +103,7 @@ trait DirectoryBasedComponent
         }
     }
 
-    protected function initializeNewNode() : Settings
+    protected function initializeNewNode(): Settings
     {
         FilesystemUtil::requireDirectory($this->baseDir, true);
         $settings = $this->generateNewSettings();
@@ -121,7 +112,7 @@ trait DirectoryBasedComponent
         return $settings;
     }
 
-    protected function getConfigDir() : string
+    protected function getConfigDir(): string
     {
         return $this->baseDir . '/' . Defaults::DOT_DIR;
     }
