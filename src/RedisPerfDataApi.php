@@ -275,7 +275,7 @@ class RedisPerfDataApi implements EventEmitterInterface
                 'ci-changes',
                 'MAXLEN',
                 '~',
-                10000,
+                500000,
                 '*',
                 'ci',
                 $ci,
