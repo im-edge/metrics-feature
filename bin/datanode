@@ -29,11 +29,11 @@ $logger = include __DIR__ . '/logger.inc.php';
 $db = ZfDbConnectionFactory::connection(include __DIR__ . '/dbconfig.inc.php');
 $dbInventory = new DbInventory($db, $logger);
 
-$dataNode = new DataNode($options->get('directory'), $logger);
+$dataNode = new DataNode($options->getOperand('directory'), $logger);
 $dataNode->run();
 $dbInventory->registerDataNode($dataNode);
 
-$metrics = new MetricStore($options->get('store'), $logger);
+$metrics = new MetricStore($options->getOperand('store'), $logger);
 $metrics->requireBeingConfigured();
 $dataNode->claimMetricStore($metrics);
 $dbInventory->registerMetricsStore($metrics);
@@ -41,7 +41,7 @@ $dbInventory->registerMetricsStore($metrics);
 Loop::futureTick(function () use ($dbInventory, $metrics, $logger) {
     $redis = new RedisPerfDataApi($logger, $metrics->getRedisSocketUri());
     $redis->setClientName('IcingaMetrics::ciUpdates');
-    $handler = new CiUpdateHandler($dbInventory, $redis,$metrics->getUuid(), $logger);
+    $handler = new CiUpdateHandler($dbInventory, $redis, $metrics->getUuid(), $logger);
     $handler->run();
 });
 Loop::run();
