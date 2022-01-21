@@ -30,7 +30,7 @@ class CiConfig implements JsonSerializable
         $self = new static();
         $self->uuid = $uuid;
         $hex = bin2hex($uuid->getBytes());
-        $self->filename = substr($hex, 0, 2) . '/' . substr($hex, 2, 2) . "/$hex.rrd";
+        $self->filename = substr($hex, 0, 3) . "/$hex.rrd";
         $self->dsNames = $dsNames;
         $self->dsMap = $dsMap;
         return $self;
