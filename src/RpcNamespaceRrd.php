@@ -12,11 +12,8 @@ use function React\Promise\resolve;
 
 class RpcNamespaceRrd
 {
-    /** @var AsyncRrdtool */
-    protected $rrdtool;
-
-    /** @var Client */
-    protected $client;
+    protected AsyncRrdtool $rrdtool;
+    protected Client $client;
 
     public function __construct(AsyncRrdtool $rrdtool, Client $client)
     {
@@ -24,10 +21,7 @@ class RpcNamespaceRrd
         $this->client = $client;
     }
 
-    /**
-     * @return string
-     */
-    public function versionRequest()
+    public function versionRequest(): string
     {
         return 'v0.1.0';
     }
@@ -72,7 +66,7 @@ class RpcNamespaceRrd
      * @param string $file
      * @return ExtendedPromiseInterface
      */
-    public function recreateRequest($file): ExtendedPromiseInterface
+    public function recreateRequest(string $file): ExtendedPromiseInterface
     {
         return $this->rrdtool->recreateFile($file, true);
     }
