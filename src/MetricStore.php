@@ -102,7 +102,7 @@ class MetricStore
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
 
         $api = new RemoteApi($this->logger, $rrdtool, $rrdCached);
-        $api->run('/run/icinga-metrics/' . $this->uuid->toString() . '.sock');
+        $api->run('/run/icinga-metrics/' . $this->getUuid()->toString() . '.sock');
     }
 
     protected function runMainHandler()
