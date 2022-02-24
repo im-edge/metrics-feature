@@ -6,6 +6,7 @@ use GetOpt\GetOpt;
 use GetOpt\Operand;
 use IcingaMetrics\MetricStore;
 use React\EventLoop\Loop;
+use React\EventLoop\StreamSelectLoop;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -24,4 +25,7 @@ try {
 $metrics = new MetricStore($options->getOperand('directory'), $logger);
 $metrics->setName('benchmark');
 $metrics->run();
+if (Loop::get() instanceof StreamSelectLoop) {
+    $logger->warning('Please install php-ev for better performance');
+}
 Loop::run();
