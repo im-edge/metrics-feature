@@ -1,7 +1,7 @@
-Icinga Graphing
-===============
+Icinga Metrics
+==============
 
-Icinga Graphing wants to offer an unexcited pleasantly relaxed performance
+Icinga Metrics wants to offer an unexcited pleasantly relaxed performance
 graphing experience. Implemented as a thin and modern abstraction layer based
 on matured technology it puts its main focus on robustness and ease of use.
 
@@ -19,9 +19,9 @@ ones:
 
 * [RRDtool](https://oss.oetiker.ch/rrdtool/): used to be THE OpenSource industry
   standard for high performance time series data graphing. It's no longer "cool"
-  enough, as it has no REST API and it requires you to read it's manual. We love
-  the raw rendering power and simplicity of this tool, that's why it builds one
-  of the core parts of **Icinga Graphing**.
+  enough, as it has no REST API and it requires you to read it's manual. We did.
+  We love the raw rendering power and simplicity of this tool, that's why it
+  became of the core parts of **Icinga Metrics**.
 
 * [Redis](https://redis.io): an Open Source in-memory data structure store. We
   use it as a local cache and message broker. We use it as a buffer for burst
@@ -36,15 +36,14 @@ ones:
 * [ReactPHP](https://reactphp.org/): relatively small, battle-tested library.
   Allows writing event-driven code based on non-blocking I/O in PHP.
 
-When not to use Icinga Graphing
--------------------------------
+When not to use Icinga Metrics
+------------------------------
 
 While you might want to use this software for many purposes, we do not aim to
 be everybody's darling. We are driven by the needs of the [Icinga](https://icinga.com)
 monitoring software, and this leads to specific design decisions.
 
-Chances are good that it could also perfectly fit your requirements. It might
-not when you:
+Chances are good, that it fits your requirements too. It might not, when you:
 
 * want to track performance data in related to the geographical position of a
   moving entity? Use TimescaleDB or a similar product
@@ -52,4 +51,4 @@ not when you:
   data? You might want to check out InfluxDB
 
 Just want to store performance data without employing a data scientist? Give
-**Icinga Graphing** a try!
+**Icinga Metrics** a try!
