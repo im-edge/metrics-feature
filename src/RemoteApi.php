@@ -5,7 +5,6 @@ namespace IcingaMetrics;
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
 use Exception;
-use gipfl\OpenRpc\Reflection\MetaDataClass;
 use gipfl\Protocol\JsonRpc\Error;
 use gipfl\Protocol\JsonRpc\Handler\FailingPacketHandler;
 use gipfl\Protocol\JsonRpc\Handler\NamespacedPacketHandler;
@@ -19,23 +18,15 @@ use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
 use function posix_getegid;
-use function posix_getgrgid;
 
 class RemoteApi implements EventEmitterInterface
 {
     use EventEmitterTrait;
 
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var ControlSocket */
-    protected $controlSocket;
-
-    /** @var AsyncRrdtool */
-    protected $rrdtool;
-
-    /** @var RrdCachedClient */
-    protected $rrdCached;
+    protected LoggerInterface $logger;
+    protected AsyncRrdtool $rrdtool;
+    protected RrdCachedClient $rrdCached;
+    protected ?ControlSocket $controlSocket = null;
 
     public function __construct(
         LoggerInterface $logger,
@@ -47,12 +38,12 @@ class RemoteApi implements EventEmitterInterface
         $this->rrdCached = $rrdCached;
     }
 
-    public function run($socketPath)
+    public function run(string $socketPath)
     {
         $this->initializeControlSocket($socketPath);
     }
 
-    protected function initializeControlSocket($path)
+    protected function initializeControlSocket(string $path)
     {
         if (empty($path)) {
             throw new \InvalidArgumentException('Control socket path expected, got none');
@@ -64,25 +55,21 @@ class RemoteApi implements EventEmitterInterface
         $this->controlSocket = $socket;
     }
 
-    protected function isAllowed(UnixSocketPeer $peer)
+    protected function isAllowed(UnixSocketPeer $peer): bool
     {
         if ($peer->getUid() === 0) {
             return true;
         }
         $myGid = posix_getegid();
         $peerGid = $peer->getGid();
+        // Hint: $myGid makes also part of id -G, this is the fast lane for those using
+        //       php-fpm and the user icingaweb2 (with the very same main group as we have)
         if ($peerGid === $myGid) {
             return true;
         }
-        $additionalGroups = posix_getgrgid(posix_getegid())['members'];
-        foreach ($additionalGroups as $groupName) {
-            $gid = posix_getgrnam($groupName)['gid'];
-            if ($gid === $peerGid) {
-                return true;
-            }
-        }
 
-        return false;
+        $uid = $peer->getUid();
+        return in_array($myGid, array_map('intval', explode(' ', `id -G $uid`)));
     }
 
     protected function addSocketEventHandlers(ControlSocket $socket)
@@ -94,9 +81,10 @@ class RemoteApi implements EventEmitterInterface
 
             $peer = UnixSocketInspection::getPeer($connection);
             if (!$this->isAllowed($peer)) {
-                $jsonRpc->setHandler(new FailingPacketHandler(new Error(Error::METHOD_NOT_FOUND, [
-                    sprintf('%s is not allowed to control this socket', $peer->getUsername())
-                ])));
+                $jsonRpc->setHandler(new FailingPacketHandler(new Error(Error::METHOD_NOT_FOUND, sprintf(
+                    '%s is not allowed to control this socket',
+                    $peer->getUsername()
+                ))));
                 Loop::get()->addTimer(10, function () use ($connection) {
                     $connection->close();
                 });
