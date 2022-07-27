@@ -128,7 +128,7 @@ class CiUpdateHandler
     {
         // $stream looks like this:
         // [0] => [ 'rrd:stream', [ 0 => .. ]
-        $stream = $stream[0][1];
+        $stream = $stream[0][1] ?? null;
         if (empty($stream)) {
             $this->logger->warning('Got an unexpected stream construct, please let us know');
             return [];
