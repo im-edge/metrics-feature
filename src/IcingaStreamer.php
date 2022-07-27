@@ -55,7 +55,7 @@ class IcingaStreamer implements EventEmitterInterface
             }
             // TODO: check_command as context?
             $ci = new Ci($result->getHost(), $result->isHost() ? null : $result->getService());
-            $this->emit('perfData', [new PerfData($ci, $values, $checkResult->getExecutionEnd())]);
+            $this->emit(RedisPerfDataApi::ON_PERF_DATA, [new PerfData($ci, $values, $checkResult->getExecutionEnd())]);
         });
         Loop::futureTick(function () {
             $this->logger->info('Initializing Icinga Streaming Client');

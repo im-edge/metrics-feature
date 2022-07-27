@@ -42,7 +42,7 @@ class SelfMonitoring implements EventEmitterInterface
         }
         $this->fetchingRedis = $this->redisApi->getCounters()->then(function ($counters = null) {
             $this->fetchingRedis = null;
-            $this->emit('perfData', [
+            $this->emit(RedisPerfDataApi::ON_PERF_DATA, [
                 new PerfData(new Ci($this->ciName, 'RRDHealth'), $this->makeCounters((array) $counters), time())
             ]);
         }, function (\Throwable $e) {
@@ -62,7 +62,7 @@ class SelfMonitoring implements EventEmitterInterface
                     }
                 }
                 unset($value);
-                $this->emit('perfData', [
+                $this->emit(RedisPerfDataApi::ON_PERF_DATA, [
                     new PerfData(new Ci($this->ciName, 'RRDCacheD'), $result, time())
                 ]);
             }, function (\Exception $e) {
@@ -73,7 +73,7 @@ class SelfMonitoring implements EventEmitterInterface
     protected function emitInterfaceCounters()
     {
         foreach (Network::getInterfaceCounters() as $ifName => $counters) {
-            $this->emit('perfData', [
+            $this->emit(RedisPerfDataApi::ON_PERF_DATA, [
                 new PerfData(
                     new Ci($this->ciName, 'Interface', $ifName),
                     $this->makeCounters((array) $counters),
@@ -97,7 +97,7 @@ class SelfMonitoring implements EventEmitterInterface
     {
         $counters = Cpu::getCounters();
         foreach ($counters as $cpu => $cpuCounters) {
-            $this->emit('perfData', [
+            $this->emit(RedisPerfDataApi::ON_PERF_DATA, [
                 new PerfData(new Ci($this->ciName, 'CPU', $cpu), $this->makeCounters($cpuCounters), time())
             ]);
         }

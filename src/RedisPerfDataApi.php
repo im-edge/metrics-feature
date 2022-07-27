@@ -26,6 +26,7 @@ class RedisPerfDataApi implements EventEmitterInterface
 {
     use EventEmitterTrait;
 
+    const ON_PERF_DATA = 'perfData';
     const ON_STRAIN_START = 'strain_start';
 
     const ON_STRAIN_END = 'strain_end';

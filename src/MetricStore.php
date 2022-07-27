@@ -136,7 +136,7 @@ class MetricStore
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $rrdCached->setLogger($this->logger);
         $monitor = new SelfMonitoring($redis, $rrdCached, $this->logger, $this->getUuid()->toString());
-        $monitor->on('perfData', [$redis, 'shipPerfData']);
+        $monitor->on(RedisPerfDataApi::ON_PERF_DATA, [$redis, 'shipPerfData']);
         $monitor->run(15);
     }
 }
