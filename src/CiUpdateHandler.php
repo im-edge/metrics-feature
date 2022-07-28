@@ -96,7 +96,7 @@ class CiUpdateHandler
 
     public function run()
     {
-        $this->logger->info("CiUpdateHandler is starting");
+        $this->logger->info('CiUpdateHandler is starting');
         $this->fetchLastPosition()->then($this->funcFetchNext);
     }
 
