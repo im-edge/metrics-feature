@@ -4,23 +4,36 @@
   },
   "autoload": {
     "psr-4": {
-      "IcingaGraphing\\": "src"
+      "IcingaMetrics\\": "src"
     }
   },
   "require": {
-    "php": ">=5.6.6",
+    "php": ">=7.3",
+    "ext-ctype": "*",
     "ext-json": "*",
+    "ext-mbstring": "*",
     "ext-openssl": "*",
     "ext-pcntl": "*",
-    "gipfl/icinga-api": ">=0.2",
+    "ext-pdo": "*",
+    "ext-posix": "*",
+    "gipfl/data-type": ">=0.2",
+    "gipfl/icinga-api": "@dev",
+    "gipfl/icinga-perf-data": "@dev",
+    "gipfl/json": ">=0.2",
     "gipfl/linux-health": ">=0.2",
-    "gipfl/log": ">=0.2",
-    "gipfl/redis-utils": ">=0.1",
-    "gipfl/rrdtool": ">=0.2",
-    "react/event-loop": "^1.1",
-    "ext-ctype": "*",
-    "ext-mbstring": "*"
-  },
-  "minimum-stability": "dev",
-  "prefer-stable": false
+    "gipfl/log": ">=0.7",
+    "gipfl/process": "^0",
+    "gipfl/protocol-jsonrpc": ">=v0.6.1",
+    "gipfl/protocol-netstring": ">=0.1.1",
+    "gipfl/redis-utils": "@dev",
+    "gipfl/rrdtool": "@dev",
+    "gipfl/simple-daemon": "^0",
+    "gipfl/socket": "^0",
+    "gipfl/stream": "^0",
+    "gipfl/zfdb": "^0",
+    "gipfl/zfdbstore": "^0",
+    "ramsey/uuid": "^4",
+    "react/event-loop": "^1.2",
+    "ulrichsg/getopt-php": "^4.0"
+  }
 }
