@@ -12,19 +12,11 @@ use React\EventLoop\Loop;
 
 class RrdCachedRunner implements ProcessWithPidInterface
 {
+    protected ProcessRunner $runner;
+    protected LoggerInterface $logger;
+    protected string $baseDir;
+    protected string $binary;
     protected $socketFile;
-
-    /** @var ProcessRunner */
-    protected $runner;
-
-    /** @var string */
-    protected $baseDir;
-
-    /** @var string */
-    protected $binary;
-
-    /** @var LoggerInterface */
-    protected $logger;
 
     public function __construct(string $binary, string $baseDir, LoggerInterface $logger)
     {
