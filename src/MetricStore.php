@@ -135,7 +135,17 @@ class MetricStore implements ProcessWithPidInterface
         $redis->setClientName('IcingaMetrics::self-monitoring');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $rrdCached->setLogger($this->logger);
-        $monitor = new SelfMonitoring($redis, $rrdCached, $this->logger, $this->getUuid()->toString());
+        $monitor = new SelfMonitoring(
+            $redis,
+            $rrdCached,
+            $this->logger,
+            [
+                'redis-server' => $this->redisRunner,
+                'rrdcached'    => $this->rrdCachedRunner,
+                'metric-store' => $this,
+            ],
+            $this->getUuid()->toString()
+        );
         $monitor->on(RedisPerfDataApi::ON_PERF_DATA, [$redis, 'shipPerfData']);
         $monitor->run(15);
     }
