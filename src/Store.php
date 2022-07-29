@@ -13,26 +13,17 @@ use Psr\Log\LoggerInterface;
 use React\Promise\ExtendedPromiseInterface;
 use function addcslashes;
 use function array_flip;
-use function array_keys;
 use function floor;
-use function implode;
 use function sprintf;
 use function substr;
 
 class Store
 {
-    /** @var RedisPerfDataApi */
-    protected $redisApi;
-
-    /** @var RrdCachedClient */
-    protected $rrdCached;
-
-    /** @var AsyncRrdtool */
-    protected $rrdTool;
-
-    protected $naming;
-
-    protected $logger;
+    protected RedisPerfDataApi $redisApi;
+    protected RrdCachedClient $rrdCached;
+    protected AsyncRrdtool $rrdTool;
+    protected DefaultNamingStrategy $naming;
+    protected LoggerInterface $logger;
 
     public function __construct(
         RedisPerfDataApi $redisApi,
