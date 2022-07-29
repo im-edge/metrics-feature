@@ -158,6 +158,11 @@ class ProcessRunner extends EventEmitter
         $this->emit(self::ON_START, [$process]);
     }
 
+    public function getChildPid(): ?int
+    {
+        return $this->childPid;
+    }
+
     protected function getArgumentString(): string
     {
         if (empty($this->args)) {

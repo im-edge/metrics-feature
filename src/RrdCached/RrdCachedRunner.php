@@ -5,11 +5,12 @@ namespace IcingaMetrics\RrdCached;
 use gipfl\Stream\BufferedLineReader;
 use IcingaMetrics\FilesystemUtil;
 use IcingaMetrics\ProcessRunner;
+use IcingaMetrics\ProcessWithPidInterface;
 use Psr\Log\LoggerInterface;
 use React\ChildProcess\Process;
 use React\EventLoop\Loop;
 
-class RrdCachedRunner
+class RrdCachedRunner implements ProcessWithPidInterface
 {
     protected $socketFile;
 
@@ -108,5 +109,10 @@ class RrdCachedRunner
             // '-V', 'LOG_INFO', // LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE,
             //       // LOG_INFO, LOG_DEBUG. Default is LOG_ERR
         ];
+    }
+
+    public function getProcessPid(): ?int
+    {
+        return $this->runner->getChildPid();
     }
 }

@@ -12,7 +12,7 @@ use Ramsey\Uuid\UuidInterface;
 use React\EventLoop\Loop;
 use RuntimeException;
 
-class MetricStore
+class MetricStore implements ProcessWithPidInterface
 {
     use DirectoryBasedComponent;
 
@@ -138,5 +138,10 @@ class MetricStore
         $monitor = new SelfMonitoring($redis, $rrdCached, $this->logger, $this->getUuid()->toString());
         $monitor->on(RedisPerfDataApi::ON_PERF_DATA, [$redis, 'shipPerfData']);
         $monitor->run(15);
+    }
+
+    public function getProcessPid(): ?int
+    {
+        return getmypid();
     }
 }
