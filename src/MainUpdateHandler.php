@@ -99,7 +99,7 @@ class MainUpdateHandler
 
         // $stream looks like this:
         // [0] => [ 'rrd:stream', [ 0 => .. ]
-        $stream = $stream[0][1];
+        $stream = $stream[0][1] ?? null;
         if (empty($stream)) {
             if ($this->startingUp) {
                 $this->startingUp = false;
@@ -122,6 +122,11 @@ class MainUpdateHandler
                 $this->backlogBytesAtStartup += strlen($line) + 1;
             }
             $bulk .= "update $line\n";
+        }
+        if ($bulk === '') {
+            $this->logger->notice('Nothing to send with this batch, pretty strange');
+            $this->scheduleNextFetch();
+            return;
         }
 
         $this->rrdCached->batch($bulk)
