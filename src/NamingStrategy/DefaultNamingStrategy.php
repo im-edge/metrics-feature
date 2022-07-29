@@ -10,7 +10,7 @@ use Ramsey\Uuid\Uuid;
 
 class DefaultNamingStrategy
 {
-    protected $logger;
+    protected LoggerInterface $logger;
 
     public function __construct(LoggerInterface $logger)
     {
