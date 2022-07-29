@@ -12,18 +12,10 @@ use React\EventLoop\Loop;
 
 class RedisRunner implements ProcessWithPidInterface
 {
-    /** @var ProcessRunner */
-    protected $runner;
-
-    /** @var string */
-    protected $baseDir;
-
-    /** @var string */
-    protected $binary;
-
-    /** @var LoggerInterface */
-    protected $logger;
-
+    protected ProcessRunner $runner;
+    protected string $baseDir;
+    protected string $binary;
+    protected LoggerInterface $logger;
     protected ?int $redisPid;
 
     public function __construct(string $binary, string $baseDir, LoggerInterface $logger)
