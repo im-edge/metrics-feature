@@ -11,6 +11,7 @@ use gipfl\LinuxHealth\Network;
 use gipfl\RrdTool\RrdCached\Client;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
+use React\EventLoop\TimerInterface;
 use React\Promise\ExtendedPromiseInterface;
 
 class SelfMonitoring implements EventEmitterInterface
@@ -129,13 +130,22 @@ class SelfMonitoring implements EventEmitterInterface
 
     public function run($interval)
     {
-        Loop::get()->addPeriodicTimer($interval, function () {
+        $this->timer = Loop::get()->addPeriodicTimer($interval, function () {
             $this->emitRedisCounters();
             $this->emitRrdCachedCounters();
             $this->emitCpuPerformance();
             $this->emitInterfaceCounters();
+            $this->emitRedisProcessCounters();
         });
 
         $this->logger->info("SelfHealthChecker is ready to start");
+    }
+
+    public function __destruct()
+    {
+        if ($this->timer) {
+            Loop::cancelTimer($this->timer);
+            $this->timer = null;
+        }
     }
 }
