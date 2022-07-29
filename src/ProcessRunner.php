@@ -19,35 +19,16 @@ class ProcessRunner extends EventEmitter
 {
     const ON_START = 'start';
 
-    /** @var  Process */
-    protected $process;
-
-    /** @var string */
-    protected $command;
-
-    /** @var array */
-    protected $args = [];
-
-    /** @var ?array */
-    protected $env;
-
-    /** @var ?string */
-    protected $cwd;
-
-    /** @var ?Deferred */
-    protected $terminating;
-
-    /** @var ?TimerInterface */
-    protected $scheduledRestart;
-
-    /** @var int */
-    protected $childPid;
-
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var bool */
-    protected $restartOnSuccess = false;
+    protected ?Process $process = null;
+    protected string $command;
+    protected array $args = [];
+    protected ?array $env = null;
+    protected ?string $cwd = null;
+    protected ?Deferred $terminating = null;
+    protected ?TimerInterface $scheduledRestart = null;
+    protected ?int $childPid = null;
+    protected LoggerInterface $logger;
+    protected bool $restartOnSuccess = false;
 
     public function __construct(string $command, array $args = null, string $cwd = null, array $env = null)
     {
