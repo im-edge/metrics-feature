@@ -190,7 +190,7 @@ class MainUpdateHandler
     {
         if (empty($position)) {
             $this->logger->info('Got no former position, fetching full stream');
-            $this->position = 0;
+            $this->position = '0';
         } else {
             $this->logger->info("Resuming stream from $position");
             $this->position = $position;
