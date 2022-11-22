@@ -54,7 +54,7 @@ trait DirectoryBasedComponent
         $this->config = $config;
     }
 
-    protected function requireConfig(): Settings
+    public function requireConfig(): Settings
     {
         return $this->config = $this->readOptionalConfig() ?: $this->initializeNewNode();
     }
