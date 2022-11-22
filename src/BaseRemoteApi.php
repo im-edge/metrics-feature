@@ -10,8 +10,6 @@ use gipfl\Protocol\JsonRpc\Handler\FailingPacketHandler;
 use gipfl\Protocol\JsonRpc\Handler\NamespacedPacketHandler;
 use gipfl\Protocol\JsonRpc\JsonRpcConnection;
 use gipfl\Protocol\NetString\StreamWrapper;
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use gipfl\Socket\UnixSocketInspection;
 use gipfl\Socket\UnixSocketPeer;
 use Psr\Log\LoggerInterface;
@@ -19,23 +17,17 @@ use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
 use function posix_getegid;
 
-class RemoteApi implements EventEmitterInterface
+abstract class BaseRemoteApi implements EventEmitterInterface
 {
     use EventEmitterTrait;
 
     protected LoggerInterface $logger;
-    protected AsyncRrdtool $rrdtool;
-    protected RrdCachedClient $rrdCached;
     protected ?ControlSocket $controlSocket = null;
+    protected DataNode $dataNode;
 
-    public function __construct(
-        LoggerInterface $logger,
-        AsyncRrdtool $rrdtool,
-        RrdCachedClient $rrdCached
-    ) {
+    public function __construct(LoggerInterface $logger)
+    {
         $this->logger = $logger;
-        $this->rrdtool = $rrdtool;
-        $this->rrdCached = $rrdCached;
     }
 
     public function run(string $socketPath)
@@ -72,10 +64,11 @@ class RemoteApi implements EventEmitterInterface
         return in_array($myGid, array_map('intval', explode(' ', `id -G $uid`)));
     }
 
+    abstract protected function addHandlersToJsonRpcConnection(JsonRpcConnection $connection);
+
     protected function addSocketEventHandlers(ControlSocket $socket)
     {
-        $rrdHandler = new RpcNamespaceRrd($this->rrdtool, $this->rrdCached);
-        $socket->on('connection', function (ConnectionInterface $connection) use ($rrdHandler) {
+        $socket->on('connection', function (ConnectionInterface $connection) {
             $jsonRpc = new JsonRpcConnection(new StreamWrapper($connection));
             $jsonRpc->setLogger($this->logger);
 
@@ -91,9 +84,7 @@ class RemoteApi implements EventEmitterInterface
                 return;
             }
 
-            $handler = new NamespacedPacketHandler();
-            $handler->registerNamespace('rrd', $rrdHandler);
-            $jsonRpc->setHandler($handler);
+            $this->addHandlersToJsonRpcConnection($jsonRpc);
         });
         $socket->on('error', function (Exception $error) {
             // Connection error, Socket remains functional
