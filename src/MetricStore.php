@@ -5,6 +5,7 @@ namespace IcingaMetrics;
 use gipfl\DataType\Settings;
 use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
+use IcingaMetrics\Receiver\ReceiverRunner;
 use IcingaMetrics\Redis\RedisRunner;
 use IcingaMetrics\RrdCached\RrdCachedRunner;
 use Ramsey\Uuid\Uuid;
@@ -88,6 +89,12 @@ class MetricStore implements ProcessWithPidInterface
         });
         Loop::addTimer(2, function () {
             $this->initializeRemoteApi();
+        });
+        Loop::addTimer(3, function () {
+            if ($receivers = $this->config->get('receivers')) {
+                $runner = new ReceiverRunner($this->logger, $receivers, $this);
+                $runner->run();
+            }
         });
     }
 
