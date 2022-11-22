@@ -4,6 +4,7 @@ namespace IcingaMetrics;
 
 use React\Promise\ExtendedPromiseInterface;
 use stdClass;
+use function React\Promise\reject;
 
 class RpcNamespaceDatanode
 {
@@ -25,6 +26,8 @@ class RpcNamespaceDatanode
     }
     public function createStoreRequest(string $name): ExtendedPromiseInterface
     {
+        // Not yet
+        return reject();
     }
 
     public function getStoresRequest(): stdClass
