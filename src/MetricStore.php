@@ -101,7 +101,7 @@ class MetricStore implements ProcessWithPidInterface
         $rrdtool->setLogger($this->logger);
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
 
-        $api = new RemoteApi($this->logger, $rrdtool, $rrdCached);
+        $api = new MetricStoreRemoteApi($this->logger, $rrdtool, $rrdCached);
         $api->run('/run/icinga-metrics/' . $this->getUuid()->toString() . '.sock');
     }
 
