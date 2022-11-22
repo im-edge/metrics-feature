@@ -1,0 +1,21 @@
+[Unit]
+Description=Icinga Metrics
+Documentation=https://github.com/Thomas-Gelf/icinga-metrics
+Wants=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/icinga-metrics
+EnvironmentFile=-/etc/sysconfig/icinga-metrics
+ExecStart=/usr/bin/icinga-metrics
+ExecReload=/bin/kill -HUP ${MAINPID}
+User=icingametrics
+SyslogIdentifier=icinga-metrics
+Type=notify
+
+NotifyAccess=main
+WatchdogSec=10
+RestartSec=30
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
