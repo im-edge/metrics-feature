@@ -3,9 +3,12 @@
 namespace IcingaMetrics;
 
 use gipfl\RrdTool\AsyncRrdtool;
+use gipfl\RrdTool\DsList;
 use gipfl\RrdTool\RrdCached\Client;
 use gipfl\RrdTool\RrdGraphInfo;
+use gipfl\RrdTool\RrdInfo;
 use gipfl\RrdTool\RrdSummary;
+use InvalidArgumentException;
 use React\Promise\ExtendedPromiseInterface;
 use function React\Promise\all;
 use function React\Promise\resolve;
@@ -82,6 +85,33 @@ class RpcNamespaceRrd
 
         // string(25) "OK u:0,24 s:0,00 r:31,71 " ??
         return $rrdtool->send("tune $file $tuning");
+    }
+
+    public function mergeRequest(array $files, string $outputFile)
+    {
+        $jobs = [];
+        if (empty($files)) {
+            throw new InvalidArgumentException('Merging requires at least one file');
+        }
+        $cmdSuffix = '';
+        foreach ($files as $file) {
+            $jobs[$file] = $this->client->info($file);
+            $cmdSuffix .= " --source $file";
+        }
+        return all($jobs)->then(function ($infos) use ($outputFile, $cmdSuffix) {
+            /** @var RrdInfo[] $infos */
+            $first = current($infos);
+            $newDs = new DsList();
+            foreach ($infos as $info) {
+                foreach ($info->getDsList()->getDataSources() as $ds) {
+                    if (! $newDs->hasName($ds->getName())) {
+                        $newDs->add($ds);
+                    }
+                }
+            }
+            $rra = $first->getRraSet();
+            return $this->rrdtool->send("create $outputFile $rra $newDs$cmdSuffix");
+        });
     }
 
     /**
