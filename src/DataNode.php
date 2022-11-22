@@ -18,9 +18,34 @@ class DataNode
         self::CONFIG_VERSION,
     ];
 
+    /** @var MetricStore[] */
+    protected array $metricStores = [];
+
     public function claimMetricStore(MetricStore $store)
     {
         $store->setDataStoreUuid($this->getUuid());
+        $this->metricStores[$store->getUuid()->getBytes()] = $store;
+    }
+
+    public function getMetricStores(): array
+    {
+        return $this->metricStores;
+    }
+
+    protected function initialize()
+    {
+        $this->initializeRemoteApi();
+        foreach ($this->config->getArray('registered-metric-stores') as $path) {
+            $metrics = new MetricStore($path, $this->logger);
+            $metrics->requireBeingConfigured();
+            $this->claimMetricStore($metrics);
+        }
+    }
+
+    protected function initializeRemoteApi()
+    {
+        $api = new DataNodeRemoteApi($this->logger, $this);
+        $api->run('/run/icinga-metrics/' . $this->getUuid()->toString() . '.sock');
     }
 
     protected function generateName() : string

@@ -28,35 +28,21 @@ class RedisPerfDataApi implements EventEmitterInterface
 
     const ON_PERF_DATA = 'perfData';
     const ON_STRAIN_START = 'strain_start';
-
     const ON_STRAIN_END = 'strain_end';
-
     const STRAIN_START = 100000;
-
     const STRAIN_END = 5000;
 
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var ExtendedPromiseInterface|RedisClient */
-    protected $redis;
-
-    /** @var string */
-    protected $socketUri;
-
-    /** @var string */
-    protected $luaDir;
-
-    /** @var LuaScriptRunner */
-    protected $lua;
-
-    protected $prefix = 'rrd:';
-
-    protected $clientName = 'IcingaGraphing';
-
-    protected $cntPending = 0;
-
-    protected $isStrain = false;
+    /** @var ExtendedPromiseInterface|RedisClient|null */
+    protected $redis = null;
+    /** @var LuaScriptRunner|ExtendedPromiseInterface|null */
+    protected $lua = null;
+    protected LoggerInterface $logger;
+    protected string $socketUri;
+    protected string $luaDir;
+    protected string $prefix = 'rrd:';
+    protected string $clientName = 'IcingaMetrics';
+    protected int $cntPending = 0;
+    protected bool $isStrain = false;
 
     public function __construct(LoggerInterface $logger, $redisSocketUri)
     {
@@ -65,7 +51,7 @@ class RedisPerfDataApi implements EventEmitterInterface
         $this->luaDir = dirname(__DIR__) . '/lua';
     }
 
-    public function setClientName($name)
+    public function setClientName($name): RedisPerfDataApi
     {
         $this->clientName = $name;
         if ($this->redis instanceof RedisClient) {
@@ -82,16 +68,28 @@ class RedisPerfDataApi implements EventEmitterInterface
     {
         if ($this->redis === null) {
             $this->logger->debug('Initiating a new Redis connection');
-            $deferred = new Deferred();
-            $this->redis = $deferred->promise();
-            $this->keepConnectingToRedis()->then(function (RedisClient $client) use ($deferred) {
+            $this->redis = $this->keepConnectingToRedis()->then(function (RedisClient $client) {
+                $this->logger->notice('CONNECTED to Redis: ' . $this->clientName);
                 $this->redis = $client;
-                $deferred->resolve($client);
+                return $client;
+            }, function ($e) {
+                $this->logger->error('Failed to get Redis connection: ' . $e->getMessage());
             });
+            return $this->redis;
         }
+
+        // Hint: it's a StreamingClient
         if (! $this->redis instanceof RedisClient) {
-            $this->logger->info('Redis is still a ' . get_class($this->redis));
+            $this->logger->info(sprintf(
+                'Redis is still a %s (%s - connecting to %s)',
+                get_class($this->redis),
+                $this->clientName,
+                $this->socketUri
+            ));
+            return $this->redis;
         }
+
+        // $this->logger->notice('Resolving redis ' . $this->clientName . ' with ' . get_class($this->redis));
 
         return resolve($this->redis);
     }
@@ -106,9 +104,12 @@ class RedisPerfDataApi implements EventEmitterInterface
             $this->lua = $deferred->promise();
             $this->getRedisConnection()->then(function (RedisClient $client) use ($deferred) {
                 $lua = new LuaScriptRunner($client, $this->luaDir);
+                $this->logger->notice('INITIALIZED LUA: ' . $this->clientName);
                 $lua->setLogger($this->logger);
                 $this->lua = $lua;
                 $deferred->resolve($lua);
+            }, function () {
+                $this->logger->error('SHIT, NO LUA');
             });
         }
 
@@ -136,7 +137,7 @@ class RedisPerfDataApi implements EventEmitterInterface
     {
         $this->incPending();
         return $this->getLuaRunner()->then(function (LuaScriptRunner $lua) use ($perfData) {
-            $lua->runScript('shipPerfData', [JsonString::encode($perfData)]) // TODO: ship prefix
+            return $lua->runScript('shipPerfData', [JsonString::encode($perfData)]) // TODO: ship prefix
             ->then([RedisUtil::class, 'makeHash'])->then(function ($result) {
                 $this->incPending(-1);
                 return $result;
@@ -176,6 +177,7 @@ class RedisPerfDataApi implements EventEmitterInterface
         $retry = RetryUnless::succeeding(function () use ($deferred) {
             return $this->connectToRedis()->then(function (RedisClient $client) use ($deferred) {
                 $deferred->resolve($client);
+                return $client;
             });
         })->slowDownAfter(10, 5);
         $retry->setLogger($this->logger);
