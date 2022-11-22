@@ -2,37 +2,30 @@
 
 namespace IcingaMetrics;
 
+use Closure;
 use Exception;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
+use React\EventLoop\TimerInterface;
 use React\Promise\ExtendedPromiseInterface;
 use RuntimeException;
 
+use function React\Promise\Timer\sleep;
+
 class MainUpdateHandler
 {
-    /** @var RedisPerfDataApi */
-    protected $redisApi;
-
-    /** @var LoggerInterface */
-    protected $logger;
-
-    /** @var RrdCachedClient */
-    protected $rrdCached;
-
-    protected $position;
-
-    protected $startupTime;
-
-    protected $startingUp = true;
-
-    protected $shuttingDown = false;
-
-    protected $backlogLinesAtStartup = 0;
-
-    protected $backlogBytesAtStartup = 0;
-
-    protected $funcFetchNext;
+    protected RedisPerfDataApi $redisApi;
+    protected LoggerInterface $logger;
+    protected RrdCachedClient $rrdCached;
+    protected string $position;
+    protected float $startupTime;
+    protected bool $startingUp = true;
+    protected bool $shuttingDown = false;
+    protected int $backlogLinesAtStartup = 0;
+    protected int $backlogBytesAtStartup = 0;
+    protected Closure $funcFetchNext;
+    protected ?TimerInterface $connecting = null;
 
     /**
      * @param RedisPerfDataApi $redisApi
@@ -52,14 +45,25 @@ class MainUpdateHandler
     public function run()
     {
         $this->startupTime = microtime(true);
-        $this->logger->info("MainUpdateHandler is starting");
-        $this->fetchLastPosition()->then($this->funcFetchNext);
+        $this->logger->notice("MainUpdateHandler is starting");
+        $start = function () {
+            $this->fetchLastPosition()->then(function ($position) {
+                Loop::cancelTimer($this->connecting);
+                $this->connecting = null;
+                $this->scheduleNextFetch();
+            }, function (Exception $e) {
+                $this->logger->warning('Got no last position, trying again in 3 seconds: ' . $e->getMessage());
+            });
+        };
+        $start();
+        $this->connecting = Loop::addPeriodicTimer(3, $start);
     }
 
     protected function fetchLastPosition(): ExtendedPromiseInterface
     {
         return $this->redisApi->fetchLastPosition()->then(function ($position) {
             $this->setInitialPosition($position);
+            return $position;
         });
     }
 
@@ -71,6 +75,11 @@ class MainUpdateHandler
 
         $this->readNextBatch()->then(function ($stream) {
             $this->processBulk($stream);
+        }, function (Exception $e) {
+            $this->logger->error('Reading next batch failed, continuing in 15s: ' . $e->getMessage());
+            sleep(15)->then(function () {
+                $this->scheduleNextFetch();
+            });
         });
     }
 
@@ -136,7 +145,7 @@ class MainUpdateHandler
                 }
 
                 return $this->redisApi->setLastPosition($this->position);
-            })->otherwise(function (Exception $e) {
+            })->otherwise(function (\Throwable $e) {
                 $this->logger->error($e->getMessage());
             })->always(function () {
                 $this->scheduleNextFetch();
@@ -152,6 +161,7 @@ class MainUpdateHandler
      */
     protected function processErrors($result, $stream)
     {
+        $this->logger->error('RRDCached had errors');
         $stepError = 0;
         // TODO: $stepErrorFiles = [];
         foreach ($result as $pos => $error) {
