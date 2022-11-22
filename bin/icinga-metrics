@@ -1,0 +1,49 @@
+#!/usr/bin/php
+<?php
+
+use GetOpt\ArgumentException;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+use IcingaMetrics\CiUpdateHandler;
+use IcingaMetrics\DataNode;
+use IcingaMetrics\Db\ZfDbConnectionFactory;
+use IcingaMetrics\DbInventory;
+use IcingaMetrics\RedisPerfDataApi;
+use React\EventLoop\Loop;
+use React\EventLoop\StreamSelectLoop;
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+error_reporting(E_ALL | E_STRICT);
+
+$options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
+$options->addOperand(Operand::create('directory', Operand::REQUIRED));
+try {
+    $options->process();
+} catch (ArgumentException $e) {
+    echo $options->getHelpText();
+    exit(1);
+}
+
+$logger = include __DIR__ . '/logger.inc.php';
+
+$dataNode = new DataNode($options->getOperand('directory'), $logger);
+$dataNode->run();
+
+$db = ZfDbConnectionFactory::connection((array) $dataNode->requireConfig()->getAsSettings('db')->jsonSerialize());
+$dbInventory = new DbInventory($db, $logger);
+$dbInventory->registerDataNode($dataNode);
+
+foreach ($dataNode->getMetricStores() as $metricStore) {
+    $dbInventory->registerMetricsStore($metricStore);
+    $metricStore->run();
+    Loop::futureTick(function () use ($dbInventory, $metricStore, $logger) {
+        $redis = new RedisPerfDataApi($logger, $metricStore->getRedisSocketUri());
+        $redis->setClientName('IcingaMetrics::ciUpdates');
+        $handler = new CiUpdateHandler($dbInventory, $redis, $metricStore->getUuid(), $logger);
+        $handler->run();
+    });
+}
+if (Loop::get() instanceof StreamSelectLoop) {
+    $logger->warning('Please install php-ev for better performance');
+}
+Loop::run();
