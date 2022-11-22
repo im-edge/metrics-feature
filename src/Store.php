@@ -97,13 +97,15 @@ class Store
                         $newDs[$ds->getName()] = $ds;
                     }
                 }
+                $rraSet = $info->getRraSet();
                 if (! empty($newDs)) {
-                    // $rrdtool->run("tune $file $tuning", false);
-                    $this->logger->debug(sprintf(
-                        "Tuning %s (not yet): %s\n",
-                        $ciConfig->filename,
-                        implode(', ', array_keys($newDs))
-                    ));
+                    $list = new DsList($newDs);
+                    $command = sprintf('tune %s %s', $ciConfig->filename, $list);
+                    $this->logger->notice(sprintf('Tuning %s: %s', $ciConfig->filename, $list));
+
+                    return $this->rrdTool->send($command)->then(function () use ($ci, $ciConfig, $dsList, $rraSet) {
+                        return $this->redisApi->setCiConfig($ci, $ciConfig, $dsList, $rraSet);
+                    });
                 }
 
                 return $this->redisApi->setCiConfig($ci, $ciConfig, $dsList, $info->getRraSet());
