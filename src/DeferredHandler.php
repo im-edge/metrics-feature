@@ -76,7 +76,9 @@ class DeferredHandler
                 $cntDeferred = 0;
                 foreach ($cis as $ci => $ciDetails) {
                     $ciDetails = JsonString::decode($ciDetails);
-                    if ($ciDetails->reason === 'Unknown CI') {
+                    if ($ciDetails->reason === 'Unknown CI'
+                        || preg_match('/^Unknown DS name /', $ciDetails->reason)  // Unknown DS name "value2"
+                    ) {
                         $this->pendingCi[$ci] = new PerfData(
                             Ci::fromSerialization(JsonString::decode($ci)),
                             (array) $ciDetails->dataPoints,
