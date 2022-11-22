@@ -108,6 +108,7 @@ class MetricStore implements ProcessWithPidInterface
     protected function runMainHandler()
     {
         $redis = new RedisPerfDataApi($this->logger, $this->redisRunner->getSocketUri());
+        $this->logger->info('MainHandler connecting to redis via ' . $this->redisRunner->getSocketUri());
         $redis->setClientName('IcingaMetrics::main');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $mainHandler = new MainUpdateHandler($redis, $rrdCached, $this->logger);
@@ -117,6 +118,7 @@ class MetricStore implements ProcessWithPidInterface
     protected function runDeferredHandler()
     {
         $redis = new RedisPerfDataApi($this->logger, $this->redisRunner->getSocketUri());
+        $this->logger->info('DeferredHandler connecting to redis via ' . $this->redisRunner->getSocketUri());
         $redis->setClientName('IcingaMetrics::deferred');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $rrdCached->setLogger($this->logger);
