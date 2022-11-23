@@ -6,6 +6,7 @@ use GetOpt\GetOpt;
 use GetOpt\Operand;
 use gipfl\Cli\Process;
 use gipfl\SimpleDaemon\Daemon;
+use IcingaMetrics\Application;
 use IcingaMetrics\DataNode;
 use IcingaMetrics\DataNodeRunner;
 use React\EventLoop\Loop;
@@ -22,7 +23,7 @@ try {
     echo $options->getHelpText();
     exit(1);
 }
-Process::setTitle('IcingaMetrics');
+Process::setTitle(Application::PROCESS_NAME);
 $home = $options->getOperand('directory');
 $home ??= $_ENV['HOME'] ?? $_SERVER['HOME'];
 if ($home === null) {
