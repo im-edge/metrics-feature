@@ -36,9 +36,7 @@ if (Loop::get() instanceof StreamSelectLoop) {
     $logger->warning('Please install php-ev for better performance');
 }
 
-$dataNode = new DataNode($home, $logger);
 $daemon = new Daemon();
-$dataNodeRunner = new DataNodeRunner($dataNode);
-$daemon->attachTask($dataNodeRunner);
+$daemon->attachTask(new DataNodeRunner(new DataNode($home, $logger)));
 $daemon->run(Loop::get());
 Loop::run();
