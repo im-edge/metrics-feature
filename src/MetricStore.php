@@ -2,7 +2,6 @@
 
 namespace IcingaMetrics;
 
-use gipfl\DataType\Settings;
 use gipfl\RrdTool\AsyncRrdtool;
 use gipfl\RrdTool\RrdCached\Client as RrdCachedClient;
 use IcingaMetrics\Receiver\ReceiverRunner;
