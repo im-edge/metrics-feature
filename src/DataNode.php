@@ -17,6 +17,7 @@ class DataNode
     const SUPPORTED_CONFIG_VERSIONS = [
         self::CONFIG_VERSION,
     ];
+    const SOCKET_PATH = '/run/icinga-metrics';
 
     /** @var MetricStore[] */
     protected array $metricStores = [];
@@ -45,7 +46,7 @@ class DataNode
     protected function initializeRemoteApi()
     {
         $api = new DataNodeRemoteApi($this->logger, $this);
-        $api->run('/run/icinga-metrics/' . $this->getUuid()->toString() . '.sock');
+        $api->run(self::SOCKET_PATH . '/' . $this->getUuid()->toString() . '.sock');
     }
 
     protected function generateName() : string
