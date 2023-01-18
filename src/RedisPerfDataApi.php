@@ -40,7 +40,7 @@ class RedisPerfDataApi implements EventEmitterInterface
     protected string $socketUri;
     protected string $luaDir;
     protected string $prefix = 'rrd:';
-    protected string $clientName = 'IcingaMetrics';
+    protected string $clientName = Application::PROCESS_NAME;
     protected int $cntPending = 0;
     protected bool $isStrain = false;
 

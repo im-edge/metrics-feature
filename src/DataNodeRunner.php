@@ -47,7 +47,7 @@ class DataNodeRunner implements DaemonTask, LoggerAwareInterface, SystemdAwareTa
             $metricStore->run();
             Loop::futureTick(function () use ($dbInventory, $metricStore, $logger) {
                 $redis = new RedisPerfDataApi($logger, $metricStore->getRedisSocketUri());
-                $redis->setClientName('IcingaMetrics::ciUpdates');
+                $redis->setClientName(Application::PROCESS_NAME . '::ciUpdates');
                 $handler = new CiUpdateHandler($dbInventory, $redis, $metricStore->getUuid(), $logger);
                 $handler->run();
             });

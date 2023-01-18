@@ -22,6 +22,7 @@ class MetricStore implements ProcessWithPidInterface
     const SUPPORTED_CONFIG_VERSIONS = [
         self::CONFIG_VERSION,
     ];
+    const SOCKET_PATH = '/run/icinga-metrics';
 
     protected ?RedisRunner $redisRunner = null;
     protected RrdCachedRunner $rrdCachedRunner;
@@ -108,14 +109,14 @@ class MetricStore implements ProcessWithPidInterface
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
 
         $api = new MetricStoreRemoteApi($this->logger, $rrdtool, $rrdCached);
-        $api->run('/run/icinga-metrics/' . $this->getUuid()->toString() . '.sock');
+        $api->run(self::SOCKET_PATH . '/' . $this->getUuid()->toString() . '.sock');
     }
 
     protected function runMainHandler()
     {
         $redis = new RedisPerfDataApi($this->logger, $this->redisRunner->getSocketUri());
         $this->logger->info('MainHandler connecting to redis via ' . $this->redisRunner->getSocketUri());
-        $redis->setClientName('IcingaMetrics::main');
+        $redis->setClientName(Application::PROCESS_NAME . '::main');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $mainHandler = new MainUpdateHandler($redis, $rrdCached, $this->logger);
         $mainHandler->run();
@@ -125,7 +126,7 @@ class MetricStore implements ProcessWithPidInterface
     {
         $redis = new RedisPerfDataApi($this->logger, $this->redisRunner->getSocketUri());
         $this->logger->info('DeferredHandler connecting to redis via ' . $this->redisRunner->getSocketUri());
-        $redis->setClientName('IcingaMetrics::deferred');
+        $redis->setClientName(Application::PROCESS_NAME . '::deferred');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $rrdCached->setLogger($this->logger);
         $rrdtool = new AsyncRrdtool(
@@ -140,7 +141,7 @@ class MetricStore implements ProcessWithPidInterface
     protected function runSelfMonitoring()
     {
         $redis = new RedisPerfDataApi($this->logger, $this->redisRunner->getSocketUri());
-        $redis->setClientName('IcingaMetrics::self-monitoring');
+        $redis->setClientName(Application::PROCESS_NAME . '::self-monitoring');
         $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), Loop::get());
         $rrdCached->setLogger($this->logger);
         $monitor = new SelfMonitoring(

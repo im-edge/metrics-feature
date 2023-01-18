@@ -3,6 +3,7 @@
 namespace IcingaMetrics\Receiver;
 
 use gipfl\IcingaPerfData\Measurement;
+use IcingaMetrics\Application;
 use IcingaMetrics\PerfData;
 use IcingaMetrics\PerfDataShipper;
 use IcingaMetrics\RedisPerfDataApi;
@@ -12,7 +13,7 @@ class PerfDataSpoolReceiver extends BaseReceiver
     public function run()
     {
         $redis = new RedisPerfDataApi($this->logger, $this->metricStore->getRedisSocketUri());
-        $redis->setClientName('IcingaMetrics::perfdataShipper');
+        $redis->setClientName(Application::PROCESS_NAME . '::perfdataShipper');
         $perf = new PerfDataShipper($this->logger, $this->settings->getRequired('spool-directory'));
         $redis->on(RedisPerfDataApi::ON_STRAIN_START, function ($count) use ($perf) {
             $this->logger->notice(sprintf('%d items waiting for Redis, pause reading', $count));
