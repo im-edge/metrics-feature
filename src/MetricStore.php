@@ -23,6 +23,9 @@ class MetricStore implements ProcessWithPidInterface
         self::CONFIG_VERSION,
     ];
     const SOCKET_PATH = '/run/icinga-metrics';
+    const DEFAULT_REDIS_BINARY = '/usr/bin/redis-server';
+    const DEFAULT_RRD_TOOL_BINARY = '/usr/bin/rrdtool';
+    const DEFAULT_RRD_CACHED_BINARY = '/usr/bin/rrdcached';
 
     protected ?RedisRunner $redisRunner = null;
     protected RrdCachedRunner $rrdCachedRunner;
@@ -66,7 +69,7 @@ class MetricStore implements ProcessWithPidInterface
     protected function redisRunner(): RedisRunner
     {
         if ($this->redisRunner === null) {
-            $this->redisRunner = new RedisRunner('/usr/bin/redis-server', $this->baseDir . '/redis', $this->logger);
+            $this->redisRunner = new RedisRunner(static::getRedisBinary(), $this->baseDir . '/redis', $this->logger);
         }
 
         return $this->redisRunner;
@@ -76,7 +79,7 @@ class MetricStore implements ProcessWithPidInterface
     {
         $this->redisRunner()->run();
         $this->rrdCachedRunner = new RrdCachedRunner(
-            '/usr/bin/rrdcached',
+            static::getRrdCacheDBinary(),
             $this->baseDir . '/rrdcached',
             $this->logger
         );
@@ -102,7 +105,7 @@ class MetricStore implements ProcessWithPidInterface
     {
         $rrdtool = new AsyncRrdtool(
             $this->rrdCachedRunner->getDataDir(),
-            '/usr/bin/rrdtool',
+            static::getRrdToolBinary(),
             $this->rrdCachedRunner->getSocketFile()
         );
         $rrdtool->setLogger($this->logger);
@@ -131,7 +134,7 @@ class MetricStore implements ProcessWithPidInterface
         $rrdCached->setLogger($this->logger);
         $rrdtool = new AsyncRrdtool(
             $this->rrdCachedRunner->getDataDir(),
-            '/usr/bin/rrdtool'
+            static::getRrdToolBinary()
         );
         $rrdtool->setLogger($this->logger);
         $deferredHandler = new DeferredHandler($redis, $rrdCached, $rrdtool, $this->logger);
@@ -162,5 +165,20 @@ class MetricStore implements ProcessWithPidInterface
     public function getProcessPid(): ?int
     {
         return getmypid();
+    }
+
+    protected static function getRedisBinary(): string
+    {
+        return static::DEFAULT_REDIS_BINARY;
+    }
+
+    protected static function getRrdCacheDBinary(): string
+    {
+        return static::DEFAULT_RRD_CACHED_BINARY;
+    }
+
+    protected static function getRrdToolBinary(): string
+    {
+        return static::DEFAULT_RRD_TOOL_BINARY;
     }
 }
