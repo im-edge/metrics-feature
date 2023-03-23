@@ -15,6 +15,7 @@ use React\EventLoop\StreamSelectLoop;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 error_reporting(E_ALL | E_STRICT);
 
+Process::setTitle(Application::PROCESS_NAME);
 $options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
 $options->addOperand(Operand::create('directory'));
 try {
@@ -23,7 +24,7 @@ try {
     echo $options->getHelpText();
     exit(1);
 }
-Process::setTitle(Application::PROCESS_NAME);
+
 $home = $options->getOperand('directory');
 $home ??= $_ENV['HOME'] ?? $_SERVER['HOME'];
 if ($home === null) {
