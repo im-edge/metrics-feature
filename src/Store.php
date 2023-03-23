@@ -19,6 +19,8 @@ use function substr;
 
 class Store
 {
+    protected const TYPE_COUNTER = 'COUNTER';
+    protected const TYPE_GAUGE = 'GAUGE';
     protected RedisPerfDataApi $redisApi;
     protected RrdCachedClient $rrdCached;
     protected AsyncRrdtool $rrdTool;
@@ -56,9 +58,9 @@ class Store
         $keyValue = [];
         foreach ($perfData->getValues() as $key => $value) {
             if (substr($value, -1, 1) === 'c') {
-                $type = 'COUNTER';
+                $type = self::TYPE_COUNTER;
             } else {
-                $type = 'GAUGE';
+                $type = self::TYPE_GAUGE;
             }
             $keyValue[$key] = [$type, $value];
         }
@@ -121,20 +123,12 @@ class Store
             });
     }
 
-    /**
-     * @param $filename
-     * @param $step
-     * @param $start
-     * @param DsList $dsList
-     * @param RraSet|null $rraSet
-     * @return ExtendedPromiseInterface
-     */
     protected function createFile(
         string $filename,
         int $step,
         int $start,
         DsList $dsList,
-        RraSet $rraSet = null
+        ?RraSet $rraSet = null
     ): ExtendedPromiseInterface {
         if ($rraSet === null) {
             // $rraSet = SampleRraSet::kickstartWithSeconds();
