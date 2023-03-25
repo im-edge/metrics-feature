@@ -173,7 +173,8 @@ class MainUpdateHandler
                 $filename = substr($failedLine, 0, strpos($failedLine, ' '));
                 // $this->redisApi->deferCi()
                 $this->logger->debug(sprintf(
-                    'RRDCacheD rejected for missing file "%s": %s',
+                    'RRDCacheD rejected for missing file "%s" (%s): %s',
+                    $filename,
                     $failedLine,
                     $error
                 ));
