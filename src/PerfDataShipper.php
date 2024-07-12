@@ -5,7 +5,7 @@ namespace IMEdge\MetricsFeature;
 use DirectoryIterator;
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
-use gipfl\IcingaPerfData\Parser\PerfDataFile;
+use IMEdge\IcingaPerfData\PerfDataFile;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use Psr\Log\LoggerInterface;
