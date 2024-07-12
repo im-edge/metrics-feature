@@ -1,11 +1,11 @@
 <?php
 
-namespace IcingaMetrics;
+namespace IMEdge\MetricsFeature;
 
 use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
 use React\Promise\Deferred;
-use React\Promise\ExtendedPromiseInterface;
+use React\Promise\PromiseInterface;
 
 class AsyncDependencies
 {
@@ -20,8 +20,9 @@ class AsyncDependencies
                 $logger->info("$subject is still waiting for: " . implode(', ', $diff));
             }
         });
+        $logList = implode(', ', array_keys($promises));
 
-        $done = static function () use ($deferred, $timer, &$ready, &$results, $subject, $logger) {
+        $done = static function () use ($deferred, $timer, &$ready, &$results, $subject, $logger, $logList) {
             foreach ($ready as $name => $isReady) {
                 if (! $isReady) {
                     return;
@@ -29,18 +30,18 @@ class AsyncDependencies
             }
 
             Loop::get()->cancelTimer($timer);
-            $logger->notice("$subject is ready");
+            $logger->notice("$subject is ready to run, successfully waited for $logList");
             $deferred->resolve($results);
         };
         foreach ($promises as $name => $promise) {
             $logger->info("Waiting for $name");
-            assert($promise instanceof ExtendedPromiseInterface);
+            assert($promise instanceof PromiseInterface);
             $ready[$name] = false;
             $promise->then(function ($result) use (&$ready, &$results, $name) {
                 $results[$name] = $result;
                 $ready[$name] = true;
-            })->then($done, function (\Throwable $e) use ($deferred) {
-                echo $e->getMessage() . "\n";
+            })->then($done, function (\Throwable $e) use ($deferred, $name, $logger) {
+                $logger->error('Failed waiting for ' . $name . ': ' . $e->getMessage());
                 $deferred->reject($e);
             });
         }

@@ -1,14 +1,14 @@
 <?php
 
-namespace IcingaMetrics\Receiver;
+namespace IMEdge\MetricsFeature\Receiver;
 
 use gipfl\DataType\Settings;
-use IcingaMetrics\MetricStore;
+use IMEdge\MetricsFeature\MetricStore;
 use Psr\Log\LoggerInterface;
 
 interface ReceiverInterface
 {
     public function __construct(LoggerInterface $logger, Settings $settings, MetricStore $metricStore);
 
-    public function run();
+    public function run(): void;
 }

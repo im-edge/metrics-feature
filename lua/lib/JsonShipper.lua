@@ -1,3 +1,4 @@
+-- luacheck: std lua51, globals cjson RrdCacheD, ignore JsonShipper
 require('RrdCacheD')
 
 local JsonShipper = {}
@@ -5,9 +6,7 @@ JsonShipper.new = function(inventory, queue)
   local self = {}
 
   function self.pushJsonBulk(rows)
-    local result = {}
-    local row
-    local _
+    -- local result = {}
     for _, row in ipairs(rows) do
       self.pushJson(row)
     --  table.insert(result, self.pushData(row))

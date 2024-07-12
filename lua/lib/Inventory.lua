@@ -1,3 +1,5 @@
+-- luacheck: std lua51, globals redis cjson time TableHelper, ignore Inventory
+
 require('time')
 require('TableHelper')
 
@@ -6,21 +8,15 @@ Inventory.new = function(prefix)
     local self = {}
     local redisKeyCiConfig = prefix .. ':ci'
     local redisKeyDeferredCi = prefix .. ':deferred-ci'
+    local redisKeyMissingCi = prefix .. ':missing-ci'
+    local redisKeyMissingDs = prefix .. ':missing-ds'
 
-    local function mapKeys(cid, tbl)
-        local map = cjson.decode(redis.call('HGET', inventory.idxCid, cid))
-        if map == nil then
-            return nil
-        end
-        return TableHelper.mapKeys(tbl, map)
-    end
-
-    function self.setCiConfig(ci, config)
+    function self.setCiConfig(ciKey, config)
         if config.filename == nil or config.dsNames == nil or config.dsMap == nil then
             error "CiConfig requires filename, dsNames and dsMap"
         end
         -- config has filename, dsNames and dsMap
-        return redis.call('HSET', redisKeyCiConfig, ci, cjson.encode(config))
+        return redis.call('HSET', redisKeyCiConfig, ciKey, cjson.encode(config))
     end
 
     function self.getCiConfig(ci)
@@ -40,17 +36,37 @@ Inventory.new = function(prefix)
         return redis.call('HEXISTS', redisKeyDeferredCi, ci) > 0
     end
 
-    function self.freeDeferred(ci)
-        redis.call('HDEL', redisKeyDeferredCi, ci)
+    function self.freeDeferred(ciKey)
+        redis.call('HDEL', redisKeyDeferredCi, ciKey)
+        redis.call('HDEL', redisKeyMissingCi, ciKey)
+        redis.call('HDEL', redisKeyMissingDs, ciKey)
     end
 
-    function self.defer(ci, ts, dataPoints, reason, dataTime)
-        redis.call('HSET', redisKeyDeferredCi, ci, cjson.encode({
+    function self.defer(ciKey, ts, dataPoints, reason)
+        redis.call('HSET', redisKeyDeferredCi, ciKey, cjson.encode({
             deferredSince = time.now(),
             dataPoints = dataPoints,
             ts = ts,
             reason = reason
         }))
+    end
+
+    function self.deferMeasurementForUnknownCi(ciKey, reason, measurementJson)
+        redis.call('HSET', redisKeyDeferredCi, ciKey, cjson.encode({
+            deferredSince = time.now(),
+            reason = reason
+        }))
+        redis.call('HSET', redisKeyMissingCi, ciKey, measurementJson)
+    end
+
+    function self.deferMeasurementForMissingDs(ciKey, ciConfig, reason, measurementJson)
+        redis.call('HSET', redisKeyDeferredCi, ciKey, cjson.encode({
+            deferredSince = time.now(),
+            reason = reason
+        }))
+
+-- TODO: also pass ciConfig?!
+        redis.call('HSET', redisKeyMissingDs, ciKey, measurementJson)
     end
 
     return self

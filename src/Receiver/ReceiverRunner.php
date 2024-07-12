@@ -1,9 +1,9 @@
 <?php
 
-namespace IcingaMetrics\Receiver;
+namespace IMEdge\MetricsFeature\Receiver;
 
 use gipfl\DataType\Settings;
-use IcingaMetrics\MetricStore;
+use IMEdge\MetricsFeature\MetricStore;
 use Psr\Log\LoggerInterface;
 use stdClass;
 
@@ -21,7 +21,7 @@ class ReceiverRunner
         $this->metricStore = $metricStore;
     }
 
-    public function run()
+    public function run(): void
     {
         foreach ($this->receivers as $uuid => $config) {
             $config = Settings::fromSerialization($config);
@@ -37,6 +37,7 @@ class ReceiverRunner
                             $this->metricStore
                         );
                         if ($receiver instanceof ReceiverInterface) {
+                            $this->logger->notice("Starting receiver: $logName");
                             $receiver->run();
                         } else {
                             $this->logger->error("'$className' ('$logName') is not a ReceiverInterface implementation");

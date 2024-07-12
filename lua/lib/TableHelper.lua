@@ -1,3 +1,4 @@
+-- luacheck: std lua51, ignore TableHelper
 local TableHelper = {}
 
 -- Whether table has (at least) the same keys as keys

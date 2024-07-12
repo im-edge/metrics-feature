@@ -1,4 +1,4 @@
-
+-- luacheck: std lua51, globals redis, ignore TableHelper
 local time = {}
 local cachedNow
 

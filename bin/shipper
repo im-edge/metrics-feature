@@ -1,0 +1,83 @@
+#!/usr/bin/php
+<?php
+
+use GetOpt\ArgumentException;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+use GetOpt\Option;
+use gipfl\DataType\Settings;
+use gipfl\Json\JsonString;
+use IMEdge\Log\ProcessLogger;
+use IMEdge\MetricsFeature\ApplicationFeature;
+use IMEdge\MetricsFeature\IcingaStreamer;
+use IMEdge\MetricsFeature\MetricStore;
+use IMEdge\MetricsFeature\MetricStoreRunner;
+use IMEdge\RedisUtils\LuaScriptRunner;
+use IMEdge\RedisUtils\RedisResult;
+use IMEdge\SimpleDaemon\Process;
+use Revolt\EventLoop;
+
+use function Amp\Redis\createRedisClient;
+
+// TODO: This streams metrics from the Icinga API, should be moved elsewhere
+
+require_once dirname(__DIR__, 3) . '/icinga-datanode/vendor/autoload.php'; // TODO??
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+error_reporting(E_ALL | E_STRICT);
+
+Process::setTitle(ApplicationFeature::PROCESS_NAME . '::shipper[...]');
+$options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
+$options->addOperand(Operand::create('directory')->required());
+$options->addOptions([
+    Option::create('v', 'verbose')->setDescription('Enable verbose logging'),
+    Option::create('d', 'debug')->setDescription('Enable debug logging')
+]);
+
+try {
+    $options->process();
+} catch (ArgumentException $e) {
+    echo $options->getHelpText();
+    exit(1);
+}
+$logger = ProcessLogger::create(ApplicationFeature::LOG_NAME, $options);
+
+EventLoop::setErrorHandler(function (Throwable $e) use ($logger) {
+    $logger->error('Uncaught (metrics) error: ' . $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine());
+    echo $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine() . "\n";
+    echo $e->getTraceAsString();
+    while ($e = $e->getPrevious()) {
+        $logger->error('Uncaught (metrics) error: ' . $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine());
+        echo $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine() . "\n";
+        echo $e->getTraceAsString();
+    }
+});
+
+$config = Settings::fromSerialization([
+    'host' => '192.0.2.42',
+    'port' => 5665,
+    'user' => 'metrics',
+    'pass' => '***',
+]);
+
+try {
+    $shipper = new IcingaStreamer($logger, $config);
+    $store = new MetricStore($options->getOperand('directory'), $logger);
+    $store->requireBeingConfigured();
+
+    $redis = createRedisClient('unix://' . $this->metricStore->getRedisSocketPath());
+    $redis->execute('CLIENT', 'SETNAME', ApplicationFeature::PROCESS_NAME . '::icingaStreamer');
+    $lua = new LuaScriptRunner($redis, dirname(__DIR__, 2) . '/lua', $this->logger);
+    $shipper->on(MetricStoreRunner::ON_MEASUREMENTS, function (array $measurements) use ($lua) {
+        $result = RedisResult::toHash(
+            $lua->runScript(
+                'shipMeasurements',
+                array_map(JsonString::encode(...), $measurements)
+            )
+        );
+    });
+
+    EventLoop::run();
+} catch (Throwable $e) {
+    echo $e->getMessage() . "\n";
+    exit(1);
+}

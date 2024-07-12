@@ -4,11 +4,36 @@
   },
   "autoload": {
     "psr-4": {
-      "IcingaMetrics\\": "src"
+      "IMEdge\\MetricsFeature\\": "src"
     }
   },
+  "repositories": [{
+    "url": "../../../gipfl-libs/icinga-perf-data",
+    "type": "path",
+    "options": {
+      "symlink": true
+    }
+  }, {
+    "url": "../../../gipfl-libs/rrdtool",
+    "type": "path",
+    "options": {
+      "symlink": true
+    }
+  }, {
+    "url": "../../../gipfl-libs/protocol-jsonrpc",
+    "type": "path",
+    "options": {
+      "symlink": true
+    }
+  }, {
+    "url": "../../../gipfl-libs/icinga-api",
+    "type": "path",
+    "options": {
+      "symlink": true
+    }
+  }],
   "require": {
-    "php": ">=7.4",
+    "php": ">=8.1",
     "ext-ctype": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
@@ -22,18 +47,12 @@
     "gipfl/json": ">=0.2",
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.7",
-    "gipfl/process": "^0",
-    "gipfl/protocol-jsonrpc": ">=v0.6.1",
+    "gipfl/process": ">=0.5",
+    "gipfl/protocol-jsonrpc": "@dev",
     "gipfl/protocol-netstring": ">=0.1.1",
-    "gipfl/redis-utils": "@dev",
     "gipfl/rrdtool": "@dev",
-    "gipfl/simple-daemon": "^0",
-    "gipfl/socket": "^0",
     "gipfl/stream": "^0",
-    "gipfl/zfdb": "^0",
-    "gipfl/zfdbstore": "^0",
     "ramsey/uuid": "^4",
-    "react/event-loop": "^1.2",
-    "ulrichsg/getopt-php": "^4.0"
+    "react/event-loop": "^1.2"
   }
 }

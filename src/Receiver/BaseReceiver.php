@@ -1,9 +1,9 @@
 <?php
 
-namespace IcingaMetrics\Receiver;
+namespace IMEdge\MetricsFeature\Receiver;
 
 use gipfl\DataType\Settings;
-use IcingaMetrics\MetricStore;
+use IMEdge\MetricsFeature\MetricStore;
 use Psr\Log\LoggerInterface;
 
 abstract class BaseReceiver implements ReceiverInterface
@@ -19,5 +19,5 @@ abstract class BaseReceiver implements ReceiverInterface
         $this->settings = $settings;
     }
 
-    abstract public function run();
+    abstract public function run(): void;
 }

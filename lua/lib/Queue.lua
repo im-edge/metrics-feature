@@ -1,3 +1,4 @@
+-- luacheck: std lua51, globals cjson redis RrdCacheD, ignore Queue
 require('Counters')
 require('RrdCacheD')
 
@@ -34,27 +35,13 @@ function Queue.new(prefix, counters)
         return redis.call('XRANGE', redisStreamDeferredCi .. ci, '-', '+')
     end
 
-    function self.freeDeferred(ci, inventory)
+    function self.forgetDeferredLines(ci)
         redis.call('DEL', redisStreamDeferredCi .. ci)
-        inventory.freeDeferred(ci)
     end
 
-    function self.rerunDeferred(ci, inventory)
-        local jsonString, perfData, update
-        for i, r in ipairs(self.getDeferredLinesFor(ci)) do
-            -- r -> [{"ok":"1537881339696-0"},["line","guest=0c idle=13794c .. 1537881339"]
-            jsonString = r[2][2]
-            perfData = cjson.decode(jsonString)
-            update = RrdCacheD.prepareUpdate(inventory.getCiConfig(ci), perfData)
-            if update == nil then
-                self.reject(jsonString)
-            else
-                self.schedule(update)
-            end
-        end
-        self.freeDeferred(ci, inventory)
-
-        return counters.flush()
+    function self.freeDeferred(ci, inventory)
+        self.forgetDeferredLines(ci)
+        inventory.freeDeferred(ci)
     end
 
     return self

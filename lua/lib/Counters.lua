@@ -1,3 +1,4 @@
+-- luacheck: std lua51, globals redis, ignore Counters
 local Counters = {}
 Counters.new = function(prefix)
     local redisKey = prefix .. ':counters'
@@ -13,7 +14,9 @@ Counters.new = function(prefix)
     end
 
     local function redisIncrBy(key, increment)
-        redis.call('HINCRBY', redisKey, key, increment)
+        if increment ~= 0 then
+          redis.call('HINCRBY', redisKey, key, increment)
+        end
     end
 
     function self.getPending()

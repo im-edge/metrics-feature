@@ -1,91 +1,82 @@
 <?php
 
-namespace IcingaMetrics\RrdCached;
+namespace IMEdge\MetricsFeature\RrdCached;
 
-use gipfl\Stream\BufferedLineReader;
-use IcingaMetrics\FilesystemUtil;
-use IcingaMetrics\ProcessRunner;
-use IcingaMetrics\ProcessWithPidInterface;
-use Psr\Log\LoggerInterface;
-use React\ChildProcess\Process;
-use React\EventLoop\Loop;
+use Amp\Process\Process;
+use IMEdge\Filesystem\Directory;
+use IMEdge\ProcessRunner\BufferedLineReader;
+use IMEdge\ProcessRunner\ProcessRunnerHelper;
 
-class RrdCachedRunner implements ProcessWithPidInterface
+use function Amp\async;
+use function Amp\ByteStream\pipe;
+
+class RrdCachedRunner extends ProcessRunnerHelper
 {
-    protected ProcessRunner $runner;
-    protected LoggerInterface $logger;
-    protected string $baseDir;
-    protected string $binary;
-    protected $socketFile;
+    protected string $applicationName = 'rrdcached';
 
-    public function __construct(string $binary, string $baseDir, LoggerInterface $logger)
+    public function getSocketFile(): string
     {
-        if (! is_executable($binary)) {
-            throw new \RuntimeException("Cannot execute $binary");
-        }
-        $this->binary = $binary;
-        $this->baseDir = $baseDir;
-        $this->logger = $logger;
+        return $this->baseDir . '/rrdcached.sock';
     }
 
-    public function getSocketFile()
-    {
-        return $this->socketFile;
-    }
-
-    public function run()
-    {
-        $dir = $this->baseDir;
-        FilesystemUtil::requireDirectory($dir);
-        $this->runner = new ProcessRunner($this->binary, $this->prepareArguments());
-        $this->runner->on(ProcessRunner::ON_START, function (Process $process) {
-            $lines = new BufferedLineReader("\n", Loop::get());
-            $lines->on('line', function ($data) {
-                $this->logger->info($data);
-            });
-            $process->stdout->pipe($lines);
-            $errorLines = new BufferedLineReader("\n", Loop::get());
-            $errorLines->on('line', function ($data) {
-                $this->logger->info('ERR: ' . $data);
-            });
-            $process->stdout->pipe($lines);
-        });
-        $this->runner->setLogger($this->logger)->run();
-    }
-
-    public function getDataDir(): string
+    public function getDataDirectory(): string
     {
         return $this->baseDir . '/data';
     }
 
-    protected function prepareArguments(): array
+    protected function getJournalDirectory(): string
     {
-        $path = $this->baseDir;
-        $baseDir = "$path/data";
-        $journalDir = "$path/journal";
-        FilesystemUtil::requireDirectory($baseDir);
-        FilesystemUtil::requireDirectory($journalDir);
-        $this->socketFile = $sockFile = "$path/rrdcached.sock";
-        $pidFile = "$path/rrdcached.pid";
+        return $this->baseDir . '/journal';
+    }
+
+    protected function getPidFile(): string
+    {
+        return $this->baseDir . '/rrdcached.pid';
+    }
+
+    protected function onStartingProcess(): void
+    {
+        Directory::requireWritable($this->baseDir);
+        Directory::requireWritable($this->getJournalDirectory());
+        Directory::requireWritable($this->getDataDirectory());
+        $pidFile = $this->getPidFile();
         if (file_exists($pidFile)) {
             $this->logger->notice("Unlinking PID file in $pidFile");
             unlink($pidFile);
         }
+    }
+
+    protected function onProcessStarted(Process $process): void
+    {
+        async(function () use ($process) {
+            $stdOutReader = new BufferedLineReader(static function (string $line) {
+                $this->logger->info($line);
+            }, "\n");
+            pipe($process->getStdout(), $stdOutReader);
+            $stdErrReader = new BufferedLineReader(static function (string $line) {
+                $this->logger->error($line);
+            }, "\n");
+            pipe($process->getStderr(), $stdErrReader);
+        });
+    }
+
+    protected function getArguments(): array
+    {
         $sockMode = '0660';
         // $sockGroup = 'icingaweb2';
         return [
             '-B', // Only permit writes into the base directory specified
             // '-L', // NETWORK_OPTIONS
-            '-b', $baseDir,
+            '-b', $this->getDataDirectory(),
             '-R', // Permit recursive subdirectory creation in the base directory (only with -B)
             // NOT setting -F, we want a fast shutdown, not flushing as there is a journal
-            '-j', $journalDir,
-            '-p', $pidFile,
+            '-j', $this->getJournalDirectory(),
+            '-p', $this->getPidFile(),
             // Order matters, -m and -s affect FOLLOWING sockets
             // -s  Unix socket group permissions: numeric group id or group name
             '-m', $sockMode,
             // '-s $sockGroup',
-            '-l', "unix:$sockFile",
+            '-l', "unix:" . $this->getSocketFile(),
             '-g', // Run in foreground
             // '-U', $daemonUser,
             // '-G', $daemonGroup,
@@ -101,10 +92,5 @@ class RrdCachedRunner implements ProcessWithPidInterface
             // '-V', 'LOG_INFO', // LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING, LOG_NOTICE,
             //       // LOG_INFO, LOG_DEBUG. Default is LOG_ERR
         ];
-    }
-
-    public function getProcessPid(): ?int
-    {
-        return $this->runner->getChildPid();
     }
 }

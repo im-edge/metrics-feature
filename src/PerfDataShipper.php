@@ -1,16 +1,16 @@
 <?php
 
-namespace IcingaMetrics;
+namespace IMEdge\MetricsFeature;
 
 use DirectoryIterator;
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
-use gipfl\IcingaPerfData\Ci;
-use gipfl\IcingaPerfData\Measurement;
 use gipfl\IcingaPerfData\Parser\PerfDataFile;
+use IMEdge\Metrics\Ci;
+use IMEdge\Metrics\Measurement;
 use Psr\Log\LoggerInterface;
-use React\EventLoop\Loop;
-use React\EventLoop\TimerInterface;
+use Revolt\EventLoop;
+
 use function count;
 use function microtime;
 use function preg_match;
@@ -19,9 +19,6 @@ use function sort;
 class PerfDataShipper implements EventEmitterInterface
 {
     use EventEmitterTrait;
-
-    public const ON_MEASUREMENT = 'measurement';
-    public const ON_MEASUREMENTS = 'measurements';
 
     protected const CNT_PARSED_LINES = 'parsed_lines';
     protected const CNT_FAILED_LINES = 'failed_lines';
@@ -51,70 +48,63 @@ class PerfDataShipper implements EventEmitterInterface
 
     protected LoggerInterface $logger;
     protected Measurement $total;
-    protected ?TimerInterface $statsTimer = null;
-
-    protected string $dir;
     protected array $files = [];
-    protected ?int $currentIdx = null;
-
+    protected string $dir;
     protected bool $paused = false;
+    protected ?string $statsTimer = null;
+    protected ?int $currentIdx = null;
 
     public function __construct(LoggerInterface $logger, string $dir)
     {
         $this->logger = $logger;
         $this->dir = $dir;
 
-        Loop::addTimer(1, function () {
-            $this->emit(self::ON_MEASUREMENT, [$this->total]);
-        });
+        $this->initializeCounters();
+        EventLoop::queue($this->emitCounters(...));
     }
 
-    public function run()
+    public function run(): void
     {
-        $this->initializeCounters();
         $this->emitCounters();
-        $this->statsTimer = Loop::addPeriodicTimer(15, function () {
-            $this->emitCounters();
-        });
+        $this->statsTimer = EventLoop::repeat(15, $this->emitCounters(...));
         $this->scanFiles();
     }
 
-    public function stop()
+    public function stop(): void
     {
         if ($this->statsTimer) {
-            Loop::cancelTimer($this->statsTimer);
+            EventLoop::cancel($this->statsTimer);
         }
     }
 
-    public function pause()
+    public function pause(): void
     {
         $this->paused = true;
     }
 
-    public function resume()
+    public function resume(): void
     {
         $this->paused = false;
     }
 
-    protected function emitCounters()
+    protected function emitCounters(): void
     {
-        $this->emit(self::ON_MEASUREMENT, [$this->total]);
+        $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [[$this->total]]);
     }
 
-    protected function initializeCounters()
+    protected function initializeCounters(): void
     {
         $total = new Measurement(new Ci('PerfDataShipper', 'PerfDataShipper'));
         foreach (self::COUNTERS as $counter) {
             $total->incrementCounter($counter, 0);
         }
         foreach (self::TIMES_NS as $metric) {
-            $total->setGaugeValue($metric, 0);
-            $total->getMetric($metric)->setUnit('ns');
+            $total->setGaugeValue($metric, 0, 'ns');
         }
         $this->total = $total;
     }
 
-    protected function scanFiles()
+    protected function scanFiles(): void
     {
         if ($this->paused) {
             return;
@@ -134,29 +124,24 @@ class PerfDataShipper implements EventEmitterInterface
         }
         sort($this->files);
         $this->stopTime(self::TIME_DIRECTORY_SCAN_NS, $start);
-
         $this->processFiles();
     }
 
-    protected function scheduleNextFile()
+    protected function scheduleNextFile(): void
     {
         if ($this->paused) {
-            Loop::addTimer(5, function () {
-                $this->scheduleNextFile();
-            });
+            EventLoop::delay(5, $this->scheduleNextFile(...));
             return;
         }
-        Loop::futureTick(function () {
-            $this->processNextFile();
-        });
+        EventLoop::queue($this->processNextFile(...));
     }
 
-    protected function stopTime(string $name, float $start)
+    protected function stopTime(string $name, float $start): void
     {
         $this->total->incrementCounter($name, floor(1000000 * (microtime(true) - $start)));
     }
 
-    public function processNextFile()
+    public function processNextFile(): void
     {
         $filename = $this->files[$this->currentIdx];
 
@@ -173,7 +158,7 @@ class PerfDataShipper implements EventEmitterInterface
                 $total->incrementCounter(self::CNT_PARSED_LINES);
                 $this->stopTime(self::TIME_FILE_PARSE_NS, $start);
             } catch (\Exception $e) {
-                echo $e->getMessage() . "\n";
+                $this->logger->error('Metrics error: ' . $e->getMessage());
                 $measurements = [];
                 $total->incrementCounter(self::CNT_FAILED_LINES);
             }
@@ -193,14 +178,14 @@ class PerfDataShipper implements EventEmitterInterface
             }
         }
         if (!empty($allMeasurements)) {
-            $this->emit(self::ON_MEASUREMENTS, [$allMeasurements]);
+            $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [$allMeasurements]);
         }
         $this->logger->debug("Processed $filename");
         unlink($this->dir . "/$filename");
         $this->tickNext();
     }
 
-    protected function tickNext()
+    protected function tickNext(): void
     {
         $this->currentIdx++;
         if (isset($this->files[$this->currentIdx])) {
@@ -208,21 +193,17 @@ class PerfDataShipper implements EventEmitterInterface
         } else {
             $this->files = [];
             $this->currentIdx = null;
-            Loop::futureTick(function () {
-                $this->scanFiles();
-            });
+            EventLoop::queue($this->scanFiles(...));
         }
     }
 
-    protected function processFiles()
+    protected function processFiles(): void
     {
         if (count($this->files)) {
             $this->currentIdx = 0;
             $this->scheduleNextFile();
         } else {
-            Loop::addTimer(self::DELAY_WHEN_IDLE, function () {
-                $this->scanFiles();
-            });
+            EventLoop::delay(self::DELAY_WHEN_IDLE, $this->scanFiles(...));
             $this->currentIdx = null;
         }
     }

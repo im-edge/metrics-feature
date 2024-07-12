@@ -1,14 +1,18 @@
 <?php
 
-namespace IcingaMetrics;
+namespace IMEdge\MetricsFeature;
 
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
 use gipfl\DataType\Settings;
 use gipfl\IcingaApi\ApiEvent\CheckResultApiEvent;
+use gipfl\IcingaApi\DataPoint;
 use gipfl\IcingaApi\IcingaStreamingClient;
 use gipfl\IcingaApi\ReactGlue\PeerCertificate;
-use gipfl\IcingaPerfData\Ci;
+use IMEdge\Metrics\Ci;
+use IMEdge\Metrics\Measurement;
+use IMEdge\Metrics\Metric;
+use IMEdge\Metrics\MetricDatatype;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
 use React\Socket\ConnectionInterface;
@@ -36,7 +40,7 @@ class IcingaStreamer implements EventEmitterInterface
             $peer = PeerCertificate::eventuallyGetTlsPeer($connection);
             if ($peer && $cert = $peer->getPeerCertificate()) {
                 if (openssl_x509_export($cert, $pem)) {
-                    echo $pem;
+                    // echo $pem;
                 }
             }
         });
@@ -50,12 +54,20 @@ class IcingaStreamer implements EventEmitterInterface
             }
 
             $values = [];
+            $metrics = [];
+            /** @var DataPoint $point */
             foreach ($points as $point) {
                 $values[$point->getLabel()] = $point->getValue();
+                $dataType = $point->getUnit() === 'c' ? MetricDatatype::COUNTER : MetricDatatype::GAUGE;
+                $metrics[] = new Metric($point->getLabel(), $point->getValue(), $dataType, $point->getUnit());
             }
             // TODO: check_command as context?
             $ci = new Ci($result->getHost(), $result->isHost() ? null : $result->getService());
-            $this->emit(RedisPerfDataApi::ON_PERF_DATA, [new PerfData($ci, $values, $checkResult->getExecutionEnd())]);
+            $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [[new Measurement(
+                $ci,
+                (int) floor($checkResult->getExecutionEnd()),
+                $metrics
+            )]]);
         });
         Loop::futureTick(function () {
             $this->logger->info('Initializing Icinga Streaming Client');

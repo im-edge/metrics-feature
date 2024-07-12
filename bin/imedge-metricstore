@@ -1,0 +1,96 @@
+#!/usr/bin/php
+<?php
+
+use Amp\ByteStream\ReadableResourceStream;
+use Amp\ByteStream\WritableResourceStream;
+use GetOpt\ArgumentException;
+use GetOpt\GetOpt;
+use GetOpt\Operand;
+use GetOpt\Option;
+use gipfl\Log\Filter\LogLevelFilter;
+use gipfl\Log\Logger;
+use IMEdge\JsonRpc\JsonRpcConnection;
+use IMEdge\Log\LogHelper;
+use IMEdge\Log\ProcessLogger;
+use IMEdge\MetricsFeature\ApplicationFeature;
+use IMEdge\MetricsFeature\MetricStore;
+use IMEdge\MetricsFeature\MetricStoreRunner;
+use IMEdge\Node\Logging\JsonRpcConnectionWriter;
+use IMEdge\Node\Rpc\ApiRunner;
+use IMEdge\Protocol\NetString\NetStringConnection;
+use IMEdge\SimpleDaemon\Process;
+use IMEdge\SimpleDaemon\SimpleDaemon;
+use Revolt\EventLoop;
+
+use function Amp\Redis\createRedisClient;
+
+require_once dirname(__DIR__, 3) . '/icinga-datanode/vendor/autoload.php'; // TODO??
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+error_reporting(E_ALL | E_STRICT);
+
+Process::setTitle(ApplicationFeature::PROCESS_NAME . '::store[...]');
+$options = new GetOpt(null, [GetOpt::SETTING_STRICT_OPERANDS => true]);
+$options->addOperand(Operand::create('directory')->required());
+$options->addOperand(Operand::create('redisSocket')->required());
+$options->addOptions([
+    Option::create('v', 'verbose')->setDescription('Enable verbose logging'),
+    Option::create('d', 'debug')->setDescription('Enable debug logging')
+]);
+
+try {
+    $options->process();
+    $redisSocket = $options->getOperand('redisSocket');
+} catch (ArgumentException $e) {
+    echo $options->getHelpText();
+    exit(1);
+}
+// TODO: we should set store name for process and log, once we are ready
+
+$logger = ProcessLogger::create(ApplicationFeature::LOG_NAME . '/store[...]', $options);
+LogHelper::logEventloopErrors($logger, 'Uncaught (metrics) error: ');
+
+try {
+    $store = new MetricStore($options->getOperand('directory'), $logger);
+    $logger->notice('EARLY log');
+    $store->requireBeingConfigured();
+    $netString = new NetStringConnection(new ReadableResourceStream(STDIN), new WritableResourceStream(STDOUT));
+    $api = new ApiRunner($store->getUuid()->toString());
+    $jsonRpc = new JsonRpcConnection($netString, $netString, $api, $logger);
+    $logWriter = new JsonRpcConnectionWriter($jsonRpc);
+    $logger = new Logger();
+    if (! $options->getOption('debug')) {
+        if ($options->getOption('verbose')) {
+            $logger->addFilter(new LogLevelFilter('info'));
+        } else {
+            $logger->addFilter(new LogLevelFilter('notice'));
+        }
+    }
+
+    $logger->addWriter($logWriter);
+    $store->setLogger($logger);
+    $logger->notice('SECOND log');
+    $damon = new SimpleDaemon();
+    $damon->setLogger($logger);
+    $netString->onClose($damon->shutdown(...)); // TODO: JsonRPC->onClose() ?
+    Process::setTitle(ApplicationFeature::PROCESS_NAME . '::store[' . $store->getName() . ']');
+} catch (Throwable $e) {
+    echo $e->getMessage() . "\n";
+    echo $e->getTraceAsString();
+    exit(1);
+}
+
+try {
+    LogHelper::catchStdOut($logger);
+    $mainRedis = createRedisClient($redisSocket);
+    $mainRedis->execute('CLIENT', 'SETNAME', ApplicationFeature::PROCESS_NAME . '::' . $store->getName());
+    $runner = new MetricStoreRunner($store, $mainRedis, $api, $logger);
+    $damon->attachTask($runner);
+    posix_setsid(); // TODO: Should be done by the parent for us
+    $damon->run();
+} catch (Throwable $e) {
+    $logger->error($e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine());
+    $logger->error('Shutting down MetricStore right now');
+    EventLoop::delay(0.1, function () {
+        exit(1);
+    });
+}
