@@ -10,6 +10,8 @@ use IMEdge\ProcessRunner\BufferedLineReader;
 use IMEdge\ProcessRunner\ProcessRunnerHelper;
 use IMEdge\Protocol\NetString\NetStringConnection;
 
+use Revolt\EventLoop;
+
 use function Amp\ByteStream\pipe;
 
 class StoreCommandRunner extends ProcessRunnerHelper
@@ -41,10 +43,10 @@ class StoreCommandRunner extends ProcessRunnerHelper
     {
         $netString = new NetStringConnection($this->process->getStdout(), $this->process->getStdin());
         $this->jsonRpc = new JsonRpcConnection($netString, $netString, $this->handler, $this->logger);
-        $stdErrReader = new BufferedLineReader(static function (string $line) {
+        $stdErrReader = new BufferedLineReader(function (string $line) {
             $this->logger->error($line);
         }, "\n");
-        pipe($process->getStderr(), $stdErrReader);
+        EventLoop::queue(fn () => pipe($process->getStderr(), $stdErrReader));
     }
 
     protected function getArguments(): array
