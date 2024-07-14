@@ -215,7 +215,7 @@ class RrdApi
     }
 
      // TODO: Parameter $path, check glob
-    #[ApiMethod('list')]
+    #[ApiMethod('listRequest')] // TODO: Api method name different from method name fails in ApiRunner::addApi()
     public function listRequest(): array
     {
         return reactAwait($this->client->hasCommand('LIST')->then(function ($hasList) {
