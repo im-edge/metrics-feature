@@ -24,7 +24,7 @@ use Revolt\EventLoop;
 
 use function Amp\Redis\createRedisClient;
 
-require_once dirname(__DIR__, 3) . '/icinga-datanode/vendor/autoload.php'; // TODO??
+require_once dirname(__DIR__, 2) . '/node/vendor/autoload.php'; // TODO??
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 error_reporting(E_ALL | E_STRICT);
 
@@ -51,7 +51,6 @@ LogHelper::logEventloopErrors($logger, 'Uncaught (metrics) error: ');
 
 try {
     $store = new MetricStore($options->getOperand('directory'), $logger);
-    $logger->notice('EARLY log');
     $store->requireBeingConfigured();
     $netString = new NetStringConnection(new ReadableResourceStream(STDIN), new WritableResourceStream(STDOUT));
     $api = new ApiRunner($store->getUuid()->toString());
@@ -68,7 +67,6 @@ try {
 
     $logger->addWriter($logWriter);
     $store->setLogger($logger);
-    $logger->notice('SECOND log');
     $damon = new SimpleDaemon();
     $damon->setLogger($logger);
     $netString->onClose($damon->shutdown(...)); // TODO: JsonRPC->onClose() ?
