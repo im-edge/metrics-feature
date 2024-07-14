@@ -73,7 +73,7 @@ class FeatureRunner
             $this->claimMetricStore($metrics);
             $this->startMetricStore($metrics);
         } catch (\Throwable $e) {
-            $this->logger->error($e->getMessage());
+            $this->logger->error('MetricStore initialization failed: ' . $e->getMessage());
         }
     }
 
@@ -81,7 +81,7 @@ class FeatureRunner
     {
         $name = $metricStore->getName();
         $api = new ApiRunner($metricStore->getUuid()->toString());
-        $api->addApi(new LogApi($this->logger, "[$name] (child)"));
+        $api->addApi(new LogApi($this->logger, "[$name (child)] "));
         $runner = new StoreCommandRunner(
             $this->binary,
             $metricStore->getBaseDir(),
