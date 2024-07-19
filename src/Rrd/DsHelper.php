@@ -2,10 +2,10 @@
 
 namespace IMEdge\MetricsFeature;
 
-use gipfl\RrdTool\Ds;
-use gipfl\RrdTool\DsList;
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\MetricDatatype;
+use IMEdge\RrdStructure\Ds;
+use IMEdge\RrdStructure\DsList;
 use Psr\Log\LoggerInterface;
 
 use function mb_substr;
