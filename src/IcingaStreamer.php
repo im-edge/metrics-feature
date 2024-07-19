@@ -8,14 +8,11 @@ use gipfl\DataType\Settings;
 use gipfl\IcingaApi\ApiEvent\CheckResultApiEvent;
 use gipfl\IcingaApi\DataPoint;
 use gipfl\IcingaApi\IcingaStreamingClient;
-use gipfl\IcingaApi\ReactGlue\PeerCertificate;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\Metric;
 use IMEdge\Metrics\MetricDatatype;
 use Psr\Log\LoggerInterface;
-use React\EventLoop\Loop;
-use React\Socket\ConnectionInterface;
 
 class IcingaStreamer implements EventEmitterInterface
 {
