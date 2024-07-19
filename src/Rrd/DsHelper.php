@@ -1,6 +1,6 @@
 <?php
 
-namespace IMEdge\MetricsFeature;
+namespace IMEdge\MetricsFeature\Rrd;
 
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\MetricDatatype;
