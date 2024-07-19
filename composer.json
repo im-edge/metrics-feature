@@ -19,12 +19,13 @@
     "ext-pdo": "*",
     "ext-posix": "*",
     "gipfl/data-type": ">=0.2",
-    "imedge/icinga-perf-data": ">=0.2",
     "gipfl/json": ">=0.2",
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.7",
-    "gipfl/rrdtool": ">=0.2",
-    "ramsey/uuid": "^4",
-    "react/event-loop": "^1.2"
+    "imedge/icinga-perf-data": ">=0.2",
+    "imedge/rrd-graph-info": "^0.1.1",
+    "imedge/rrd-structure": ">=0.2.1",
+    "imedge/rrdcached": ">=0.1",
+    "ramsey/uuid": "^4"
   }
 }

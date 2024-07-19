@@ -4,30 +4,24 @@ namespace IMEdge\MetricsFeature\FileInventory;
 
 use Amp\Redis\RedisClient;
 use gipfl\Json\JsonString;
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
-use gipfl\RrdTool\RrdInfo;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\MetricsFeature\CiConfig;
-use IMEdge\MetricsFeature\DsHelper;
+use IMEdge\MetricsFeature\Rrd\DsHelper;
+use IMEdge\RrdCached\RrdCachedClient;
+use IMEdge\RrdStructure\RrdInfo;
 use Psr\Log\LoggerInterface;
-use React\Promise\PromiseInterface;
 
 use function floor;
-use function React\Async\await as awaitReact;
 
 class RedisTableStore
 {
-    protected RrdFileStore $rrdFileStore;
-
     public function __construct(
         protected readonly RedisClient $redis,
         protected readonly RrdCachedClient $rrdCached,
-        protected readonly AsyncRrdtool $rrdTool,
+        protected RrdFileStore $rrdFileStore,
         protected readonly LoggerInterface $logger
     ) {
-        $this->rrdFileStore = new RrdFileStore($this->rrdCached, $this->rrdTool, $this->logger);
     }
 
     /**
@@ -48,17 +42,15 @@ class RedisTableStore
         // Align start to RRD step
         $start = (int) floor($measurement->getTimestamp() / $base) * $base;
         $step = $base === 1 ? 1 : 60;
-        return awaitReact($this->rrdFileStore->createOrTweak($ciConfig->filename, $dsList, $step, $start)
-            ->then(function (RrdInfo $info) use ($measurement, $ciConfig, $dsList) {
-                $ciName = JsonString::encode($measurement->ci);
-                $this->logger->debug("Registering $ciName in Redis");
-                $this->redis->execute('HSET', 'ci', $ciName, JsonString::encode($ciConfig));
-                $info->getDsList()->applyAliasMapFromDsList($dsList);
-                return $info;
-            }));
+        $info = $this->rrdFileStore->createOrTweak($ciConfig->filename, $dsList, $step, $start);
+        $ciName = JsonString::encode($measurement->ci);
+        $this->logger->debug("Registering $ciName in Redis");
+        $this->redis->execute('HSET', 'ci', $ciName, JsonString::encode($ciConfig));
+        $info->getDsList()->applyAliasMapFromDsList($dsList);
+        return $info;
     }
 
-    public function deferCi(Ci $ci, $filename): PromiseInterface
+    public function deferCi(Ci $ci, string $filename): bool
     {
         $reason = 'manual';
         $this->redis->execute('HSET', 'deferred-cids', JsonString::encode($ci), JsonString::encode([

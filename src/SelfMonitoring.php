@@ -8,17 +8,16 @@ use Evenement\EventEmitterTrait;
 use gipfl\LinuxHealth\Cpu;
 use gipfl\LinuxHealth\Memory;
 use gipfl\LinuxHealth\Network;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\Metric;
 use IMEdge\Metrics\MetricDatatype;
+use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
 use IMEdge\ProcessRunner\ProcessWithPidInterface;
 use IMEdge\RedisUtils\RedisResult;
+use IMEdge\RrdCached\RrdCachedClient;
 use Psr\Log\LoggerInterface;
 use Revolt\EventLoop;
-
-use function React\Async\await as reactAwait;
 
 class SelfMonitoring implements EventEmitterInterface
 {
@@ -32,6 +31,7 @@ class SelfMonitoring implements EventEmitterInterface
     public function __construct(
         protected readonly RedisClient $redis,
         protected readonly RrdCachedClient $rrdCached,
+        protected readonly RrdtoolRunner $rrdtoolRunner,
         protected readonly LoggerInterface $logger,
         protected readonly string $ciHostName
     ) {
@@ -60,6 +60,7 @@ class SelfMonitoring implements EventEmitterInterface
         $measurements = array_merge(
             $this->getRedisCounters(),
             $this->getRrdCachedCounters(),
+            $this->getRrdtoolCounters(),
             $this->getCpuPerformance(),
             $this->getInterfaceCounters(),
             $this->getRedisProcessCounters(),
@@ -90,29 +91,42 @@ class SelfMonitoring implements EventEmitterInterface
         ];
     }
 
+    protected function getRrdtoolCounters(): array
+    {
+        return [
+            new Measurement(new Ci($this->ciHostName, 'RRDTool'), time(), $this->rrdtoolRunner->getMetrics())
+        ];
+    }
+
     protected function getRrdCachedCounters(): array
     {
-        return reactAwait($this->rrdCached
-            ->stats()
-            ->then(function ($result) {
-                $metrics = [];
-                foreach ($result as $k => $v) {
-                    if (in_array($k, ['QueueLength', 'TreeNodesNumber', 'TreeDepth'])) {
-                        $metrics[] = new Metric($k, $v);
-                    } else {
-                        $metrics[] = new Metric($k, $v, MetricDatatype::COUNTER);
-                    }
-                }
-                return [
-                    new Measurement(
-                        new Ci($this->ciHostName, 'RRDCacheD'),
-                        time(),
-                        $metrics
-                    )
-                ];
-            }, function (\Exception $e) {
-                $this->logger->error('SelfHealthCheck got no data from RRDCacheD: ' . $e->getMessage());
-            }));
+        try {
+            $stats = $this->rrdCached->stats();
+        } catch (\Exception $e) {
+            $this->logger->error('SelfHealthCheck got no data from RRDCacheD: ' . $e->getMessage());
+            return [];
+        }
+
+        // TODO: implement getMetrics in Stats class?
+        $metrics = [
+            new Metric('QueueLength', $stats->queueLength),
+            new Metric('TreeNodesNumber', $stats->treeNodesNumber),
+            new Metric('TreeDepth', $stats->treeDepth),
+            new Metric('UpdatesReceived', $stats->updatesReceived, MetricDatatype::COUNTER),
+            new Metric('FlushesReceived', $stats->flushesReceived, MetricDatatype::COUNTER),
+            new Metric('UpdatesWritten', $stats->updatesWritten, MetricDatatype::COUNTER),
+            new Metric('DataSetsWritten', $stats->dataSetsWritten, MetricDatatype::COUNTER),
+            new Metric('JournalBytes', $stats->journalBytes, MetricDatatype::COUNTER),
+            new Metric('JournalRotate', $stats->journalRotate, MetricDatatype::COUNTER),
+        ];
+
+        return [
+            new Measurement(
+                new Ci($this->ciHostName, 'RRDCacheD'),
+                time(),
+                $metrics
+            )
+        ];
     }
 
     protected function getInterfaceCounters(): array

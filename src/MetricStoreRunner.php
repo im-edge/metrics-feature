@@ -4,19 +4,21 @@ namespace IMEdge\MetricsFeature;
 
 use Amp\Redis\RedisClient;
 use gipfl\Json\JsonString;
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
 use IMEdge\MetricsFeature\Api\StoreApi\MinimalNodeApi;
 use IMEdge\MetricsFeature\Api\StoreApi\RrdApi;
 use IMEdge\MetricsFeature\FileInventory\DeferredRedisTables;
+use IMEdge\MetricsFeature\FileInventory\RedisTableStore;
+use IMEdge\MetricsFeature\FileInventory\RrdFileStore;
 use IMEdge\MetricsFeature\Receiver\ReceiverRunner;
-use IMEdge\MetricsFeature\RrdCached\RrdCachedRunner;
+use IMEdge\MetricsFeature\Rrd\RrdCachedRunner;
+use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
 use IMEdge\Node\Rpc\ApiRunner;
 use IMEdge\ProcessRunner\ProcessWithPidInterface;
 use IMEdge\RedisRunner\RedisRunner;
 use IMEdge\RedisTables\RedisTables;
 use IMEdge\RedisUtils\LuaScriptRunner;
 use IMEdge\RedisUtils\RedisResult;
+use IMEdge\RrdCached\RrdCachedClient;
 use IMEdge\SimpleDaemon\DaemonComponent;
 use Psr\Log\LoggerInterface;
 
@@ -24,7 +26,6 @@ use function Amp\async;
 use function Amp\delay;
 use function Amp\Future\awaitAll;
 use function Amp\Redis\createRedisClient;
-use function React\Async\await as awaitReact;
 
 /**
  * Started per MetricStore, as a sub-process
@@ -38,8 +39,8 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
     protected const DEFAULT_RRD_CACHED_BINARY = '/usr/local/bin/rrdcached';
 
     protected RrdCachedRunner $rrdCachedRunner;
+    protected RrdtoolRunner $rrdtoolRunner;
     protected RedisRunner $redisRunner;
-    protected ?AsyncRrdtool $rrdtool = null;
     protected ?DeferredRedisTables $deferredHandler = null;
     protected ?MainUpdateHandler $mainHandler = null;
     protected ?SelfMonitoring $selfMonitoring = null;
@@ -60,12 +61,25 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
             $this->metricStore->getRedisBaseDir(),
             $this->logger
         );
-        $this->rrdtool = new AsyncRrdtool(
-            $this->rrdCachedRunner->getDataDirectory(),
+        $this->rrdtoolRunner = $this->createRrdtoolRunner('de_DE.UTF8', $this->rrdCachedRunner->getSocketFile());
+    }
+
+    protected function createRrdtoolRunner(?string $locale = null, ?string $rrdCachedSocket = null): RrdtoolRunner
+    {
+        $runner = new RrdtoolRunner(
             static::getRrdToolBinary(),
-            $this->rrdCachedRunner->getSocketFile()
+            $this->rrdCachedRunner->getDataDirectory(),
+            $this->logger
         );
-        $this->rrdtool->setLogger($this->logger);
+
+        if ($locale) {
+            $runner->setLocale('de_DE.UTF8');
+        }
+        if ($rrdCachedSocket) {
+            $runner->setRrdCachedSocket($rrdCachedSocket);
+        }
+
+        return $runner;
     }
 
     public function start(): void
@@ -76,12 +90,13 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         $this->redisRunner->run();
         chdir($this->rrdCachedRunner->getDataDirectory());
         $this->rrdCachedRunner->run();
-        delay(0.2);
+        $this->rrdtoolRunner->run();
+        delay(0.05);
         $this->runSelfMonitoring();
         $this->runDeferredHandler();
         $this->runMainHandler();
         $this->initializeRrdtool();
-        delay(0.2);
+        delay(0.05);
         if ($receivers = $metricStore->requireConfig()->get('receivers')) {
             $runner = new ReceiverRunner($this->logger, $receivers, $metricStore);
             $runner->run();
@@ -91,14 +106,13 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
 
     public function stop(): void
     {
+
         $this->logger->notice('Stopping metric store ' . $this->metricStore->getName());
         $futures = [
             async($this->selfMonitoring->stop(...)),
             async($this->redisRunner->stop(...)),
             async($this->rrdCachedRunner->stop(...)),
-            async(function () {
-                awaitReact($this->rrdtool->endProcess());
-            }),
+            async($this->rrdtoolRunner->stop(...)),
         ];
         if ($this->mainHandler) {
             $futures[] = async($this->mainHandler->stop(...));
@@ -122,46 +136,49 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
 
     protected function initializeRrdtool(): void
     {
-        $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile());
-        $this->api->addApi(new RrdApi($this->rrdtool, $rrdCached));
+        $this->api->addApi(new RrdApi($this->rrdtoolRunner, $this->connectToRrdCached(), $this->logger));
     }
 
     protected function runMainHandler(): void
     {
-        $socket = $this->metricStore->getRedisSocketPath();
-        $this->logger->info('MainHandler connecting to redis via ' . $socket);
-        $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile());
-        $this->mainHandler = new MainUpdateHandler($this->connectToRedis('main'), $rrdCached, $this->logger);
+        $this->mainHandler = new MainUpdateHandler(
+            $this->connectToRedis('main'),
+            $this->connectToRrdCached(),
+            $this->logger
+        );
         $this->mainHandler->run();
     }
 
     protected function connectToRedis(string $clientNameSuffix): RedisClient
     {
-        $client = createRedisClient('unix://' . $this->metricStore->getRedisSocketPath());
+        $socket = $this->metricStore->getRedisSocketPath();
+        $this->logger->info(sprintf('MainHandler::%s connecting to redis via %s', $clientNameSuffix, $socket));
+        $client = createRedisClient('unix://' . $socket);
         $client->execute('CLIENT', 'SETNAME', ApplicationFeature::PROCESS_NAME . '::' . $clientNameSuffix);
         return $client;
     }
 
     protected function connectToRrdCached(): RrdCachedClient
     {
-        $rrdCached = new RrdCachedClient($this->rrdCachedRunner->getSocketFile());
-        $rrdCached->setLogger($this->logger);
-        return $rrdCached;
+        // TODO: remember, disconnect/shutdown if required
+        return new RrdCachedClient($this->rrdCachedRunner->getSocketFile());
     }
 
     protected function runDeferredHandler(): void
     {
-        $rrdtool = new AsyncRrdtool(
-            $this->rrdCachedRunner->getDataDirectory(),
-            static::getRrdToolBinary()
-        );
-        $rrdtool->setLogger($this->logger);
+        $redisClient = $this->connectToRedis('deferred');
+        $rrdCached = $this->connectToRrdCached();
+        $rrdCached->stats();
+        $this->logger->notice('RrdCached is ready for DeferredRedisTables');
+        $rrdtool = $this->createRrdtoolRunner('de_DE.UTF8', $this->rrdCachedRunner->getSocketFile());
+        $rrdtool->run();
+        $rrdFileStore = new RrdFileStore($rrdCached, $rrdtool, $this->logger);
+        $store = new RedisTableStore($redisClient, $rrdCached, $rrdFileStore, $this->logger);
         $this->deferredHandler = new DeferredRedisTables(
             $this->metricStore->getNodeUuid(),
-            $this->connectToRedis('deferred'),
+            $redisClient,
             new RedisTables($this->metricStore->getNodeUuid()->toString(), $this->mainRedis, $this->logger),
-            $this->connectToRrdCached(),
-            $rrdtool,
+            $store,
             $this->logger
         );
         $this->deferredHandler->run();
@@ -175,6 +192,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         $monitor = new SelfMonitoring(
             $redis,
             $this->connectToRrdCached(),
+            $this->rrdtoolRunner,
             $this->logger,
             $this->metricStore->getUuid()->toString()
         );
@@ -200,7 +218,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
                 }
             }
             if (!empty($pairs)) {
-                $this->logger->notice('Shipped metrics: ' . implode(', ', $pairs));
+                //$this->logger->notice('Shipped metrics: ' . implode(', ', $pairs));
             }
         });
         $monitor->run(15);

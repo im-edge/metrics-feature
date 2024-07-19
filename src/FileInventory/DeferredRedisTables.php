@@ -4,11 +4,8 @@ namespace IMEdge\MetricsFeature\FileInventory;
 
 use Amp\Redis\RedisClient;
 use gipfl\Json\JsonString;
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
-use IMEdge\MetricsFeature\AsyncDependencies;
 use IMEdge\MetricsFeature\CiConfig;
 use IMEdge\RedisTables\RedisTables;
 use IMEdge\RedisUtils\LuaScriptRunner;
@@ -16,9 +13,7 @@ use IMEdge\RedisUtils\RedisResult;
 use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use React\Promise\PromiseInterface;
 use Revolt\EventLoop;
-use Throwable;
 
 use function Amp\async;
 use function Amp\Future\await;
@@ -33,8 +28,6 @@ use function key;
 class DeferredRedisTables
 {
     protected const NS_RRD_DEFINITION = '2e012390-58f9-4e84-8d15-ac61fec61ff1';
-    protected RedisTableStore $store;
-    protected ?PromiseInterface $checking = null;
     /** @var array<string, Measurement> Key is the JSON-encoded CI definition */
     protected array $pendingCi = [];
     /** @var array<string, Measurement> Key is the JSON-encoded CI definition */
@@ -56,11 +49,9 @@ class DeferredRedisTables
         UuidInterface $metricStoreUuid, // TODO: we do NOT get the metricstoreuuid!!!
         protected readonly RedisClient $redis,
         protected readonly RedisTables $tables,
-        protected readonly RrdCachedClient $rrdCached,
-        protected readonly AsyncRrdtool $rrdtool,
+        protected RedisTableStore $store,
         protected readonly LoggerInterface $logger
     ) {
-        $this->store = new RedisTableStore($redis, $rrdCached, $rrdtool, $logger);
         $this->lua = new LuaScriptRunner($this->redis, dirname(__DIR__, 2) . '/lua', $this->logger);
         $this->nsRrdDefinition = Uuid::fromString(self::NS_RRD_DEFINITION);
         // $this->nodeIdentifier = $nodeIdentifier->uuid->toString();
@@ -69,17 +60,7 @@ class DeferredRedisTables
 
     public function run(): void
     {
-        try {
-            AsyncDependencies::waitFor('DeferredHandler', [
-                // 'Redis'     => $this->redisApi->getRedisConnection(),
-                'RrdCached' => $this->rrdCached->stats(),
-            ], 5, $this->logger)->then(function () {
-                // We are not checking the return value, as useful logging happens in the method itself
-                $this->timer = EventLoop::repeat(1, $this->runCheckForDeferred(...));
-            });
-        } catch (Throwable $exception) {
-            $this->logger->error($exception->getMessage());
-        }
+        $this->timer = EventLoop::repeat(1, $this->runCheckForDeferred(...));
     }
 
     public function stop(): void
@@ -112,11 +93,7 @@ class DeferredRedisTables
 
     protected function checkForDeferred(): bool
     {
-//        $this->logger->notice('xxxxxxxxxx - checkForDeferred()');
-        if ($this->checking) {
-            $this->logger->notice('Still waiting for deferred items from Redis');
-            return false;
-        }
+
         if (! empty($this->pendingCi)) {
             $this->logger->debug(sprintf('There are still %d items pending:', count($this->pendingCi)));
             return false;

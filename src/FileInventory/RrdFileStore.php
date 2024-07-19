@@ -2,15 +2,13 @@
 
 namespace IMEdge\MetricsFeature\FileInventory;
 
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\DsList;
-use gipfl\RrdTool\RraSet;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
-use gipfl\RrdTool\RrdInfo;
-use gipfl\RrdTool\SampleRraSet;
 use IMEdge\Filesystem\Directory;
+use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
+use IMEdge\RrdCached\RrdCachedClient;
+use IMEdge\RrdStructure\DsList;
+use IMEdge\RrdStructure\RraSet;
+use IMEdge\RrdStructure\RrdInfo;
 use Psr\Log\LoggerInterface;
-use React\Promise\PromiseInterface;
 
 use function addcslashes;
 
@@ -21,17 +19,14 @@ class RrdFileStore
 
     public function __construct(
         protected readonly RrdCachedClient $rrdCached,
-        protected readonly AsyncRrdtool $rrdTool,
+        protected readonly RrdtoolRunner $rrdTool,
         protected readonly LoggerInterface $logger
     ) {
         // alternative: SampleRraSet::kickstartWithSeconds();
         $this->defaultRraSet = SampleRraSet::pnpDefaults();
     }
 
-    /**
-     * @return PromiseInterface<RrdInfo>
-     */
-    public function createOrTweak(string $filename, DsList $dsList, int $step, int $start): PromiseInterface
+    public function createOrTweak(string $filename, DsList $dsList, int $step, int $start): RrdInfo
     {
         // CREATE filename [-s stepsize] [-b begintime] [-O] DSdefinitions ... RRAdefinitions ...
         //
@@ -39,58 +34,49 @@ class RrdFileStore
         // provided the parameters are valid, and (if the -O option is given
         // or if the rrdcached was started with the -O flag) the specified
         // filename does not already exist.
-        return $this->rrdCached->info($filename)
-            ->then(function (RrdInfo $info) use ($filename, $dsList) {
-                if ($dsAdd = self::calculateNewDsList($info->getDsList(), $dsList)) {
-                    $this->logger->notice(sprintf('Tuning %s: %s', $filename, $dsAdd));
+        try {
+            // TODO: return ?RrdInfo, and no error?
+            $info = $this->rrdCached->info($filename);
+            if ($dsAdd = self::calculateNewDsList($info->getDsList(), $dsList)) {
+                $this->logger->notice(sprintf('Tuning %s: %s', $filename, $dsAdd));
 
-                    if ($this->rrdCachedHasTuneCommand) {
-                        return $this->rrdCached->tune($filename, $dsAdd);
-                    } else {
-                        // Hint: this adds new data sources. You can remove them with DEL:ds1 DEL:ds2
-                        $command = sprintf('tune %s %s', $filename, $dsAdd);
-                        return $this->rrdTool->send($command);
-                    }
+                if ($this->rrdCachedHasTuneCommand) {
+                    $this->rrdCached->tune($filename, $dsAdd);
+                } else {
+                    // Hint: this adds new data sources. You can remove them with DEL:ds1 DEL:ds2
+                    $this->rrdTool->send(sprintf('tune %s %s', $filename, $dsAdd));
                 }
 
-                return $info;
-            }, function () use ($filename, $step, $start, $dsList) {
-                // $this->logger->debug("Creating $filename: $step $start, " . $dsList);
-                return $this->createFile($filename, $step, $start, $dsList, $this->defaultRraSet);
-            });
+                return $this->rrdCached->info($filename);
+            }
+
+            return $info;
+        } catch (\Exception $e) {
+            // $this->logger->debug("Creating $filename: $step $start, " . $dsList);
+            return $this->createFile($filename, $step, $start, $dsList, $this->defaultRraSet);
+        }
     }
 
-    /**
-     * @return PromiseInterface<RrdInfo>
-     */
     protected function createFile(
         string $filename,
         int $step,
         int $start,
         DsList $dsList,
         RraSet $rraSet = null
-    ): PromiseInterface {
+    ): RrdInfo {
         Directory::requireWritable(dirname($filename), true);
-        $this->logger->notice(sprintf(
+        $command = sprintf(
             'create %s -s %d -b %d %s %s',
             addcslashes($filename, ' '), // TODO: check how to escape
             $step,
             $start,
             $dsList,
             $rraSet
-        ));
-        return $this->rrdTool->send(sprintf(
-            'create %s -s %d -b %d %s %s',
-            addcslashes($filename, ' '), // TODO: check how to escape
-            $step,
-            $start,
-            $dsList,
-            $rraSet
-        ))->then(function () use ($filename) {
-            return $this->rrdCached->info($filename);
-        }, function (\Exception $e) {
-            $this->logger->error($e->getMessage());
-        });
+        );
+        $this->logger->notice($command);
+        $this->rrdTool->send($command);
+
+        return $this->rrdCached->info($filename);
     }
 
     protected static function calculateNewDsList(DsList $left, DsList $right): ?DsList

@@ -5,14 +5,12 @@ namespace IMEdge\MetricsFeature;
 use Amp\Redis\RedisClient;
 use Exception;
 use gipfl\Json\JsonString;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
-use gipfl\RrdTool\RrdCached\RrdCachedCommand;
 use IMEdge\Metrics\Format;
+use IMEdge\RrdCached\RrdCachedClient;
+use IMEdge\RrdCached\RrdCachedCommand;
 use Psr\Log\LoggerInterface;
 use Revolt\EventLoop;
 use RuntimeException;
-
-use function React\Async\await as awaitReact;
 
 class MainUpdateHandler
 {
@@ -117,7 +115,7 @@ class MainUpdateHandler
         }
 
         try {
-            $result = awaitReact($this->rrdCached->batch($bulk));
+            $result = $this->rrdCached->batch($bulk);
             if ($result !== true) {
                 $this->processErrors($result, $stream);
             }

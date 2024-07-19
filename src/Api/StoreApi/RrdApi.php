@@ -2,62 +2,35 @@
 
 namespace IMEdge\MetricsFeature\Api\StoreApi;
 
-use gipfl\RrdTool\AsyncRrdtool;
-use gipfl\RrdTool\DsList;
-use gipfl\RrdTool\RrdCached\RrdCachedClient;
-use gipfl\RrdTool\RrdGraphInfo;
-use gipfl\RrdTool\RrdInfo;
-use gipfl\RrdTool\RrdSummary;
+use IMEdge\MetricsFeature\Rrd\RrdSummary;
+use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
 use IMEdge\RpcApi\ApiMethod;
 use IMEdge\RpcApi\ApiNamespace;
+use IMEdge\RrdCached\RrdCachedClient;
+use IMEdge\RrdGraphInfo\GraphInfo;
+use IMEdge\RrdStructure\DsList;
+use IMEdge\RrdStructure\RrdInfo;
 use InvalidArgumentException;
-
-use function React\Async\await as reactAwait;
-use function React\Promise\all;
-use function React\Promise\resolve;
+use Psr\Log\LoggerInterface;
 
 #[ApiNamespace('rrd')]
 class RrdApi
 {
-    protected AsyncRrdtool $rrdtool;
-    protected RrdCachedClient $client;
-
-    public function __construct(AsyncRrdtool $rrdtool, RrdCachedClient $client)
-    {
-        $this->rrdtool = $rrdtool;
-        $this->client = $client;
+    public function __construct(
+        protected RrdtoolRunner $rrdtool,
+        protected RrdCachedClient $client,
+        protected LoggerInterface $logger,
+    ) {
     }
 
     #[ApiMethod]
-    public function graph(string $format, string $command): array
+    public function graph(string $format, string $command): GraphInfo
     {
-        $rrdtool = $this->rrdtool;
-        $start = microtime(true);
-        /*
-        $binary = '/usr/bin/rrdtool';
-        $basedir = '/shared/containers/web/rrd';
-        $rrdtool = new Rrdtool("$basedir/data", $binary, "$basedir/rrdcached.sock");
-        */
-        // Used to be $this->graph->getFormat()
+        $start = hrtime(true);
+        $image = $this->rrdtool->send($command);
+        $duration = (hrtime(true) - $start) / 1_000_000_000;
 
-// Logger::info(date('Ymd His'.substr((string)microtime(), 1, 8).' e') . 'Running ' . $command);
-        return reactAwait($rrdtool->send($command)->then(function ($image) use ($start, $format) {
-            $duration = \microtime(true) - $start;
-            if (\strlen($image) === 0) {
-                throw new \RuntimeException('Got an empty STDOUT');
-            }
-            // $this->logger->info('Got STDOUT: ' . \strlen($image) . 'Bytes');
-            $info = RrdGraphInfo::parseRawImage($image);
-            $info['time_spent'] = $duration;
-            $imageString = \substr($image, $info['headerLength']);
-            $props = $info;
-            RrdGraphInfo::appendImageToProps($props, $imageString, $format);
-            return $props;
-        }));
-
-        // $info['rrdtool_total_time'] = $rrdtool->getTotalSpentTimings();
-        // $info['print'] = $graph->translatePrintLabels($info['print']);
-// Logger::info(date('Ymd His'.substr((string)microtime(), 1, 8).' e') . 'Result ready');
+        return GraphInfo::parse($image, $format, $duration, $this->logger);
     }
 
     #[ApiMethod]
@@ -69,7 +42,7 @@ class RrdApi
     #[ApiMethod]
     public function recreate(string $file): ?string
     {
-        return reactAwait($this->rrdtool->recreateFile($file, true));
+        return $this->rrdtool->recreateFile($file, true);
     }
 
     #[ApiMethod]
@@ -78,94 +51,97 @@ class RrdApi
         $rrdtool = $this->rrdtool;
 
         // string(25) "OK u:0,24 s:0,00 r:31,71 " ??
-        return reactAwait($rrdtool->send("tune $file $tuning"));
+        return $rrdtool->send("tune $file $tuning");
     }
 
     #[ApiMethod]
     public function merge(array $files, string $outputFile): array
     {
-        $jobs = [];
+        $infos = [];
         if (empty($files)) {
             throw new InvalidArgumentException('Merging requires at least one file');
         }
         $cmdSuffix = '';
         foreach ($files as $file) {
-            $jobs[$file] = $this->client->info($file);
+            // TODO: Run in parallel? Does it matter?
+            $infos[$file] = $this->client->info($file);
             $cmdSuffix .= " --source $file";
         }
-        return reactAwait(all($jobs)->then(function ($infos) use ($outputFile, $cmdSuffix) {
-            /** @var RrdInfo[] $infos */
-            $first = current($infos);
-            $newDs = new DsList();
-            foreach ($infos as $info) {
-                foreach ($info->getDsList()->getDataSources() as $ds) {
-                    if (! $newDs->hasName($ds->getName())) {
-                        $newDs->add($ds);
-                    }
+        /** @var RrdInfo[] $infos */
+        $first = current($infos);
+        $newDs = new DsList();
+        foreach ($infos as $info) {
+            foreach ($info->getDsList()->getDataSources() as $ds) {
+                if (! $newDs->hasName($ds->getName())) {
+                    $newDs->add($ds);
                 }
             }
-            $rra = $first->getRraSet();
-            return $this->rrdtool->send("create $outputFile $rra $newDs$cmdSuffix");
-        }));
+        }
+        $rra = $first->getRraSet();
+        return $this->rrdtool->send("create $outputFile $rra $newDs$cmdSuffix");
+
+    }
+
+    #[ApiMethod]
+    public function flushAll(): bool
+    {
+        return $this->client->flushAll();
     }
 
     #[ApiMethod]
     public function flush(string $file): bool
     {
-        return reactAwait($this->client->flush($file));
+        return $this->client->flush($file);
     }
 
     #[ApiMethod]
     public function forget(string $file): bool
     {
-        return reactAwait($this->client->flush($file));
+        return $this->client->flush($file);
     }
 
     #[ApiMethod]
     public function flushAndForget(string $file): bool
     {
-        return reactAwait($this->client->flushAndForget($file));
+        return $this->client->flushAndForget($file);
     }
 
     #[ApiMethod]
     public function delete(string $file): bool
     {
-        return reactAwait($this->client->forget($file)
-            ->then(function () use ($file) {
-                // This blocks:
-                @unlink($this->rrdtool->getBasedir() . '/' . $file);
-                return true;
-            }));
+        $this->client->forget($file);
+        @unlink($this->rrdtool->baseDir . '/' . $file);
+        return true;
     }
 
     #[ApiMethod]
     public function info(string $file): RrdInfo
     {
-        return reactAwait($this->client->info($file));
+        return $this->client->info($file);
     }
 
     #[ApiMethod]
-    public function rawinfo(string $file): string
+    public function rawinfo(string $file): array
     {
-        return reactAwait($this->client->rawInfo($file));
+        return $this->client->rawInfo($file);
     }
 
     #[ApiMethod]
     public function pending(string $file): array
     {
-        return reactAwait($this->client->pending($file));
+        return $this->client->pending($file);
     }
 
     #[ApiMethod]
     public function first(string $file, int $rra = 0): int
     {
-        return reactAwait($this->client->first($file, $rra));
+        return $this->client->first($file, $rra);
     }
 
     #[ApiMethod]
     public function last(string $file): int
     {
-        return reactAwait($this->client->last($file));
+        return $this->client->last($file);
     }
 
     /**
@@ -176,10 +152,11 @@ class RrdApi
     {
         $result = [];
         foreach ($files as $file) {
+            // TODO: is it an advantage, to launch them in parallel?
             $result[$file] = $this->client->last($file);
         }
 
-        return reactAwait(all($result));
+        return $result;
     }
 
     #[ApiMethod]
@@ -196,53 +173,48 @@ class RrdApi
         }
 
         $summary = new RrdSummary($this->rrdtool);
-
-        return reactAwait($summary->summariesForDatasources($ds, $start, $end)->then(function ($result) {
-            return $result;
-        }));
+        return $summary->summariesForDatasources($ds, [
+            'customPeriod' => [$start, $end]
+        ], $this->logger);
     }
 
     #[ApiMethod]
     public function listCommands(): array
     {
-        return reactAwait($this->client->listAvailableCommands());
+        return $this->client->listAvailableCommands();
     }
 
     #[ApiMethod]
     public function hasCommands(string $command): bool
     {
-        return reactAwait($this->client->hasCommand($command));
+        return $this->client->hasCommand($command);
     }
 
      // TODO: Parameter $path, check glob
     #[ApiMethod('listRequest')] // TODO: Api method name different from method name fails in ApiRunner::addApi()
     public function listRequest(): array
     {
-        return reactAwait($this->client->hasCommand('LIST')->then(function ($hasList) {
-            if ($hasList) {
-                return $this->client->listFiles();
-            }
-            $basedir = $this->rrdtool->getBasedir();
-            $prefixLen = \strlen($basedir) + 1;
-            return resolve(\array_map(static function ($file) use ($prefixLen) {
-                return \substr($file, $prefixLen);
-            }, \glob($basedir . '/*')));
-        }));
+        if ($this->client->hasCommand('LIST')) {
+            return $this->client->listFiles();
+        }
+        $basedir = $this->rrdtool->baseDir;
+        $prefixLen = \strlen($basedir) + 1;
+        return \array_map(static function ($file) use ($prefixLen) {
+            return \substr($file, $prefixLen);
+        }, \glob($basedir . '/*'));
     }
 
     // TODO: Parameter $path, check glob
     #[ApiMethod]
     public function listRecursive(): array
     {
-        return reactAwait($this->client->hasCommand('LIST')->then(function ($hasList) {
-            if ($hasList) {
-                return $this->client->listRecursive();
-            }
-            $basedir = $this->rrdtool->getBasedir();
-            $prefixLen = \strlen($basedir) + 1;
-            return resolve(\array_map(static function ($file) use ($prefixLen) {
-                return \substr($file, $prefixLen);
-            }, \glob($basedir . '/**/*.rrd')));
-        }));
+        if ($this->client->hasCommand('LIST')) {
+            return $this->client->listRecursive();
+        }
+        $basedir = $this->rrdtool->baseDir;
+        $prefixLen = \strlen($basedir) + 1;
+        return \array_map(static function ($file) use ($prefixLen) {
+            return \substr($file, $prefixLen);
+        }, \glob($basedir . '/**/*.rrd'));
     }
 }

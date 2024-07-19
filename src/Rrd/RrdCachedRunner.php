@@ -1,6 +1,6 @@
 <?php
 
-namespace IMEdge\MetricsFeature\RrdCached;
+namespace IMEdge\MetricsFeature\Rrd;
 
 use Amp\Process\Process;
 use IMEdge\Filesystem\Directory;
