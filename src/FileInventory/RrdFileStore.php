@@ -37,24 +37,24 @@ class RrdFileStore
         try {
             // TODO: return ?RrdInfo, and no error?
             $info = $this->rrdCached->info($filename);
-            if ($dsAdd = self::calculateNewDsList($info->getDsList(), $dsList)) {
-                $this->logger->notice(sprintf('Tuning %s: %s', $filename, $dsAdd));
-
-                if ($this->rrdCachedHasTuneCommand) {
-                    $this->rrdCached->tune($filename, $dsAdd);
-                } else {
-                    // Hint: this adds new data sources. You can remove them with DEL:ds1 DEL:ds2
-                    $this->rrdTool->send(sprintf('tune %s %s', $filename, $dsAdd));
-                }
-
-                return $this->rrdCached->info($filename);
-            }
-
-            return $info;
         } catch (\Exception $e) {
             // $this->logger->debug("Creating $filename: $step $start, " . $dsList);
             return $this->createFile($filename, $step, $start, $dsList, $this->defaultRraSet);
         }
+        if ($dsAdd = self::calculateNewDsList($info->getDsList(), $dsList)) {
+            $this->logger->notice(sprintf('Tuning %s: %s', $filename, $dsAdd));
+
+            if ($this->rrdCachedHasTuneCommand) {
+                $this->rrdCached->tune($filename, $dsAdd);
+            } else {
+                // Hint: this adds new data sources. You can remove them with DEL:ds1 DEL:ds2
+                $this->rrdTool->send(sprintf('tune %s %s', $filename, $dsAdd));
+            }
+
+            return $this->rrdCached->info($filename);
+        }
+
+        return $info;
     }
 
     protected function createFile(
