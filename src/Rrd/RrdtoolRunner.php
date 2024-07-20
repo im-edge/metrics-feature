@@ -89,9 +89,9 @@ class RrdtoolRunner extends ProcessRunnerHelper
     {
         $timings = $this->spentTimings;
         return [
-            new Metric('timeSpentSystem', $timings->system, MetricDatatype::COUNTER),
-            new Metric('timeSpentUser', $timings->user, MetricDatatype::COUNTER),
-            new Metric('timeSpentReal', $timings->real, MetricDatatype::COUNTER),
+            new Metric('timeSpentSystem', $timings->system, MetricDatatype::DDERIVE),
+            new Metric('timeSpentUser', $timings->user, MetricDatatype::DDERIVE),
+            new Metric('timeSpentReal', $timings->real, MetricDatatype::DDERIVE),
             new Metric('imageCount', $this->imageCount, MetricDatatype::COUNTER),
             new Metric('requestCount', $this->requestCount, MetricDatatype::COUNTER),
             new Metric('imageSize', $this->imageSize, MetricDatatype::COUNTER),
