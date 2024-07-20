@@ -37,7 +37,7 @@ class DsHelper
                 self::getDsNameFor($logger, $metric->label, $map),
                 $isCounter ? MetricDatatype::DERIVE->value : $metric->type->value,
                 8640,
-                $isCounter ? 0 : null
+                ($isCounter || $metric->type === MetricDatatype::DDERIVE) ? 0 : null
             );
             $ds->setAlias($metric->label);
             $result->add($ds);
