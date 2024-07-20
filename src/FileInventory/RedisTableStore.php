@@ -31,11 +31,6 @@ class RedisTableStore
      */
     public function wantCi(Measurement $measurement, int $base): RrdInfo
     {
-        $keyValue = [];
-        foreach ($measurement->getMetrics() as $key => $metric) {
-            $keyValue[$key] = [$metric->type, $metric->value];
-        }
-
         $dsList = DsHelper::getDataSourcesForMeasurement($this->logger, $measurement);
         $ciConfig = CiConfig::forDsList($dsList);
 
