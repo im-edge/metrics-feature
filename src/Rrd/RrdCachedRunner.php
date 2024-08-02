@@ -49,14 +49,8 @@ class RrdCachedRunner extends ProcessRunnerHelper
     protected function onProcessStarted(Process $process): void
     {
         async(function () use ($process) {
-            $stdOutReader = new BufferedLineReader(static function (string $line) {
-                $this->logger->info($line);
-            }, "\n");
-            pipe($process->getStdout(), $stdOutReader);
-            $stdErrReader = new BufferedLineReader(static function (string $line) {
-                $this->logger->error($line);
-            }, "\n");
-            pipe($process->getStderr(), $stdErrReader);
+            pipe($process->getStdout(), new BufferedLineReader($this->logger->info(...), "\n"));
+            pipe($process->getStderr(), new BufferedLineReader($this->logger->error(...), "\n"));
         });
     }
 

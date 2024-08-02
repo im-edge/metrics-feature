@@ -248,9 +248,7 @@ class RrdtoolRunner extends ProcessRunnerHelper
             while (null !== ($data = $process->getStdout()->read())) {
                 $this->processData($data);
             }
-            $stdErrReader = new BufferedLineReader(static function (string $line) {
-                $this->logger->error($line);
-            }, "\n");
+            $stdErrReader = new BufferedLineReader($this->logger->error(...), "\n");
             pipe($process->getStderr(), $stdErrReader);
         });
     }
