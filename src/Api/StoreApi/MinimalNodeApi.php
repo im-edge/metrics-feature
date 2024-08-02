@@ -3,8 +3,8 @@
 namespace IMEdge\MetricsFeature\Api\StoreApi;
 
 use gipfl\DataType\Settings;
-use gipfl\Protocol\JsonRpc\JsonRpcConnection;
 use IMEdge\Inventory\NodeIdentifier;
+use IMEdge\JsonRpc\JsonRpcConnection;
 use IMEdge\MetricsFeature\MetricStore;
 use IMEdge\Node\Rpc\ApiRunner;
 use IMEdge\RpcApi\ApiMethod;
@@ -73,6 +73,12 @@ class MinimalNodeApi
     public function getFeatures(): object
     {
         return (object)[];
+    }
+
+    #[ApiMethod]
+    public function listListeners(): array
+    {
+        return [];
     }
 
     #[ApiMethod]
