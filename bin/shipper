@@ -8,10 +8,10 @@ use GetOpt\Option;
 use gipfl\DataType\Settings;
 use gipfl\Json\JsonString;
 use IMEdge\Log\ProcessLogger;
+use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\ApplicationFeature;
 use IMEdge\MetricsFeature\IcingaStreamer;
 use IMEdge\MetricsFeature\MetricStore;
-use IMEdge\MetricsFeature\MetricStoreRunner;
 use IMEdge\RedisUtils\LuaScriptRunner;
 use IMEdge\RedisUtils\RedisResult;
 use IMEdge\SimpleDaemon\Process;
@@ -67,7 +67,7 @@ try {
     $redis = createRedisClient('unix://' . $this->metricStore->getRedisSocketPath());
     $redis->execute('CLIENT', 'SETNAME', ApplicationFeature::PROCESS_NAME . '::icingaStreamer');
     $lua = new LuaScriptRunner($redis, dirname(__DIR__, 2) . '/lua', $this->logger);
-    $shipper->on(MetricStoreRunner::ON_MEASUREMENTS, function (array $measurements) use ($lua) {
+    $shipper->on(MetricsEvent::ON_MEASUREMENTS, function (array $measurements) use ($lua) {
         $result = RedisResult::toHash(
             $lua->runScript(
                 'shipMeasurements',

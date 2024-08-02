@@ -3,8 +3,8 @@
 namespace IMEdge\MetricsFeature\Receiver;
 
 use gipfl\Json\JsonString;
+use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\ApplicationFeature;
-use IMEdge\MetricsFeature\MetricStoreRunner;
 use IMEdge\MetricsFeature\PerfDataShipper;
 use IMEdge\RedisUtils\LuaScriptRunner;
 use IMEdge\RedisUtils\RedisResult;
@@ -19,7 +19,7 @@ class PerfDataSpoolReceiver extends BaseReceiver
         $redis->execute('CLIENT', 'SETNAME', ApplicationFeature::PROCESS_NAME . '::perfdataShipper');
         $perf = new PerfDataShipper($this->logger, $this->settings->getRequired('spool-directory'));
         $lua = new LuaScriptRunner($redis, dirname(__DIR__, 2) . '/lua', $this->logger);
-        $perf->on(MetricStoreRunner::ON_MEASUREMENTS, function (array $measurements) use ($lua) {
+        $perf->on(MetricsEvent::ON_MEASUREMENTS, function (array $measurements) use ($lua) {
             $result = RedisResult::toHash(
                 $lua->runScript(
                     'shipMeasurements',

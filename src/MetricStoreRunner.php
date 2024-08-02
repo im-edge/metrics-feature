@@ -4,6 +4,7 @@ namespace IMEdge\MetricsFeature;
 
 use Amp\Redis\RedisClient;
 use gipfl\Json\JsonString;
+use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\Api\StoreApi\MinimalNodeApi;
 use IMEdge\MetricsFeature\Api\StoreApi\RrdApi;
 use IMEdge\MetricsFeature\FileInventory\DeferredRedisTables;
@@ -32,8 +33,6 @@ use function Amp\Redis\createRedisClient;
  */
 class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
 {
-    public const ON_MEASUREMENTS = 'measurements';
-
     protected const DEFAULT_REDIS_BINARY = '/usr/bin/redis-server';
     protected const DEFAULT_RRD_TOOL_BINARY = '/usr/local/bin/rrdtool';
     protected const DEFAULT_RRD_CACHED_BINARY = '/usr/local/bin/rrdcached';
@@ -201,7 +200,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
             'rrdcached'    => $this->rrdCachedRunner,
             'metric-store' => $this,
         ]);
-        $monitor->on(self::ON_MEASUREMENTS, function ($measurements) use ($lua) {
+        $monitor->on(MetricsEvent::ON_MEASUREMENTS, function ($measurements) use ($lua) {
             // $this->logger->notice(print_r(array_map(JsonString::encode(...), $measurements), 1));
             $result = RedisResult::toArray(
                 $lua->runScript(

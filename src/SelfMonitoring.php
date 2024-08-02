@@ -12,6 +12,7 @@ use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\Metric;
 use IMEdge\Metrics\MetricDatatype;
+use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
 use IMEdge\ProcessRunner\ProcessWithPidInterface;
 use IMEdge\RedisUtils\RedisResult;
@@ -67,7 +68,7 @@ class SelfMonitoring implements EventEmitterInterface
         );
 
         if (!empty($measurements)) {
-            $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [$measurements]);
+            $this->emit(MetricsEvent::ON_MEASUREMENTS, [$measurements]);
         }
     }
 

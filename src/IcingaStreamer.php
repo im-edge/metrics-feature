@@ -12,6 +12,7 @@ use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\Metrics\Metric;
 use IMEdge\Metrics\MetricDatatype;
+use IMEdge\Metrics\MetricsEvent;
 use Psr\Log\LoggerInterface;
 
 class IcingaStreamer implements EventEmitterInterface
@@ -60,7 +61,7 @@ class IcingaStreamer implements EventEmitterInterface
             }
             // TODO: check_command as context?
             $ci = new Ci($result->getHost(), $result->isHost() ? null : $result->getService());
-            $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [[new Measurement(
+            $this->emit(MetricsEvent::ON_MEASUREMENTS, [[new Measurement(
                 $ci,
                 (int) floor($checkResult->getExecutionEnd()),
                 $metrics

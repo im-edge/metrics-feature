@@ -6,16 +6,16 @@
  * @var Feature $this
  */
 
+use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\Api\MainApi\MetricsApi;
 use IMEdge\MetricsFeature\FeatureRunner;
-use IMEdge\MetricsFeature\MetricStoreRunner;
 use IMEdge\Node\Feature;
 
 require __DIR__ . '/vendor/autoload.php';
 
 $runner = new FeatureRunner($this, $this->logger);
-$this->events->on(MetricStoreRunner::ON_MEASUREMENTS, function ($measurements) use ($runner) {
-    $storeName = 'lab1'; // TODO: ?!?!?
+$this->events->on(MetricsEvent::ON_MEASUREMENTS, function ($measurements) use ($runner) {
+    $storeName = 'snmp'; // TODO: ?!?!?
     try {
         $runner->shipMeasurements($measurements, $storeName);
     } catch (Throwable $e) {

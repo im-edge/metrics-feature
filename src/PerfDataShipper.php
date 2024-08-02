@@ -8,6 +8,7 @@ use Evenement\EventEmitterTrait;
 use IMEdge\IcingaPerfData\PerfDataFile;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
+use IMEdge\Metrics\MetricsEvent;
 use Psr\Log\LoggerInterface;
 use Revolt\EventLoop;
 
@@ -89,7 +90,7 @@ class PerfDataShipper implements EventEmitterInterface
 
     protected function emitCounters(): void
     {
-        $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [[$this->total]]);
+        $this->emit(MetricsEvent::ON_MEASUREMENTS, [[$this->total]]);
     }
 
     protected function initializeCounters(): void
@@ -178,7 +179,7 @@ class PerfDataShipper implements EventEmitterInterface
             }
         }
         if (!empty($allMeasurements)) {
-            $this->emit(MetricStoreRunner::ON_MEASUREMENTS, [$allMeasurements]);
+            $this->emit(MetricsEvent::ON_MEASUREMENTS, [$allMeasurements]);
         }
         $this->logger->debug("Processed $filename");
         unlink($this->dir . "/$filename");
