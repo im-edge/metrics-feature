@@ -149,7 +149,7 @@ class DeferredRedisTables
         }
         $measurement = $this->pendingCi[$ciKey];
 
-        $base = 60; // 60 seconds base for now
+        $base = 1; // 60 seconds base for now
         $info = $this->store->wantCi($measurement, $base);
         $ci = $measurement->ci;
         $ciLogName = self::getCiLogName($ci, $ciKey);
