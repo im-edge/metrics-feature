@@ -126,7 +126,7 @@ class DeferredRedisTables
         $cntDeferred = 0;
         $cntPending = count($this->pendingCi);
         if ($cntPending > 0) {
-            if ($cntDeferred === $cntPending) {
+            if ($cntDeferred === $cntPending) { // TODO: check this
                 $this->logger->debug(sprintf('%d deferred CIs ready to process', $cntPending));
             } else {
                 $this->logger->debug(sprintf(
