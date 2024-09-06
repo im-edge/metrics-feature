@@ -60,26 +60,26 @@ class SampleRraSet
     ];
 
     protected static array $fullWithSeconds = [
-        // 4 hours of one per second (346kB)
-        'RRA:AVERAGE:0.5:1:14400',
-        'RRA:MAX:0.5:1:14400',
-        'RRA:MIN:0.5:1:14400',
+        // 2 hours of one per second (346kB)
+        'RRA:AVERAGE:0.5:1:7200',
+        'RRA:MIN:0.5:1:7200',
+        'RRA:MAX:0.5:1:7200',
         // 2 days of four per minute (1 every 15s) (+277kB)
         'RRA:AVERAGE:0.5:15:11520',
-        'RRA:MAX:0.5:15:11520',
         'RRA:MIN:0.5:15:11520',
-        // 2880 entries with 5 minute step = 10 days (+60kB)
-        'RRA:AVERAGE:0.5:300:2880',
-        'RRA:MAX:0.5:300:2880',
-        'RRA:MAX:0.5:300:2880',
-        // 4320 entries with 30 minute step = 90 days
-        'RRA:AVERAGE:0.5:1800:4320',
-        'RRA:MIN:0.5:1800:4320',
-        'RRA:MAX:0.5:1800:4320',
-        // 5840 entries with 360 minute step = 4 years
-        'RRA:AVERAGE:0.5:21600:5840',
-        'RRA:MIN:0.5:21600:5840',
-        'RRA:MAX:0.5:21600:5840',
+        'RRA:MAX:0.5:15:11520',
+        // 4320 entries with 5 minute step = 15 days (+60kB)
+        'RRA:AVERAGE:0.5:300:4320',
+        'RRA:MIN:0.5:300:4320',
+        'RRA:MAX:0.5:300:4320',
+        // 4800 entries with 30 minute step = 100 days
+        'RRA:AVERAGE:0.5:1800:4800',
+        'RRA:MIN:0.5:1800:4800',
+        'RRA:MAX:0.5:1800:4800',
+        // 7300 entries with 360 minute step = 5 years
+        'RRA:AVERAGE:0.5:21600:7300',
+        'RRA:MIN:0.5:21600:7300',
+        'RRA:MAX:0.5:21600:7300',
     ];
 
     // Faster RRA config
