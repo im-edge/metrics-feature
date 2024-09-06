@@ -6,9 +6,30 @@ use IMEdge\RrdStructure\RraSet;
 
 class SampleRraSet
 {
+    protected static array $defaultCreate = [ // -> step = 1 second
+        // 3600 entries with 1 second step = 1 hours
+        'RRA:AVERAGE:0.5:1:2880',
+        // 2880 entries with 1 minute step = 48 hours
+        'RRA:AVERAGE:0.5:60:2880',
+        // 2880 entries with 5 minute step = 10 days
+        'RRA:AVERAGE:0.5:5:2880',
+        // 4320 entries with 30 minute step = 90 days
+        'RRA:AVERAGE:0.5:30:4320',
+        // 5840 entries with 360 minute step = 4 years
+        'RRA:AVERAGE:0.5:360:5840',
+        'RRA:MAX:0.5:1:2880',
+        'RRA:MAX:0.5:5:2880',
+        'RRA:MAX:0.5:30:4320',
+        'RRA:MAX:0.5:360:5840',
+        'RRA:MIN:0.5:1:2880',
+        'RRA:MIN:0.5:5:2880',
+        'RRA:MIN:0.5:30:4320',
+        'RRA:MIN:0.5:360:5840'
+    ];
+
     // PNP default RRA config
     // you will get 400kb of data per datasource
-    protected static array $defaultCreate = [
+    protected static array $pnpDefault = [ // step = 60 seconds
         // 2880 entries with 1 minute step = 48 hours
         'RRA:AVERAGE:0.5:1:2880',
         // 2880 entries with 5 minute step = 10 days
