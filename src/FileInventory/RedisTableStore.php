@@ -35,8 +35,10 @@ class RedisTableStore
         $ciConfig = CiConfig::forDsList($dsList);
 
         // Align start to RRD step
+        $base = 3600;
+        $step = 1;
         $start = (int) floor($measurement->getTimestamp() / $base) * $base;
-        $step = $base === 1 ? 1 : 60;
+        // $step = $base === 1 ? 1 : 60;
         $info = $this->rrdFileStore->createOrTweak($ciConfig->filename, $dsList, $step, $start);
         $ciName = JsonString::encode($measurement->ci);
         $this->logger->debug("Registering $ciName in Redis");
