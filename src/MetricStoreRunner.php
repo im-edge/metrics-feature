@@ -161,7 +161,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
     protected function connectToRrdCached(): RrdCachedClient
     {
         // TODO: remember, disconnect/shutdown if required
-        return new RrdCachedClient($this->rrdCachedRunner->getSocketFile());
+        return new RrdCachedClient($this->rrdCachedRunner->getSocketFile(), $this->rrdCachedRunner->getDataDirectory());
     }
 
     protected function runDeferredHandler(): void
