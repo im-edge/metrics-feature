@@ -8,8 +8,11 @@ use Evenement\EventEmitterTrait;
 use IMEdge\IcingaPerfData\PerfDataFile;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
+use IMEdge\Metrics\Metric;
+use IMEdge\Metrics\MetricDatatype;
 use IMEdge\Metrics\MetricsEvent;
 use Psr\Log\LoggerInterface;
+use Ramsey\Uuid\UuidInterface;
 use Revolt\EventLoop;
 
 use function count;
@@ -45,30 +48,36 @@ class PerfDataShipper implements EventEmitterInterface
         self::TIME_EMIT_MEASUREMENT_NS
     ];
 
+    protected array $counters = [];
+    protected array $times = [];
+
     protected const DELAY_WHEN_IDLE = 5;
 
     protected LoggerInterface $logger;
-    protected Measurement $total;
+    protected UuidInterface $storeUuid;
+    protected Ci $ci;
     protected array $files = [];
     protected string $dir;
     protected bool $paused = false;
     protected ?string $statsTimer = null;
     protected ?int $currentIdx = null;
 
-    public function __construct(LoggerInterface $logger, string $dir)
+    public function __construct(LoggerInterface $logger, UuidInterface $storeUUid, string $dir)
     {
+        $this->storeUuid = $storeUUid;
         $this->logger = $logger;
         $this->dir = $dir;
+        $this->ci = new Ci($this->storeUuid->toString(), 'PerfDataShipper');
 
         $this->initializeCounters();
-        EventLoop::queue($this->emitCounters(...));
     }
 
     public function run(): void
     {
-        $this->emitCounters();
+        EventLoop::queue($this->emitCounters(...));
         $this->statsTimer = EventLoop::repeat(15, $this->emitCounters(...));
-        $this->scanFiles();
+        EventLoop::queue($this->scanFiles(...));
+        $this->logger->notice(sprintf('PerfDataShipper for %s is ready', $this->dir));
     }
 
     public function stop(): void
@@ -90,19 +99,30 @@ class PerfDataShipper implements EventEmitterInterface
 
     protected function emitCounters(): void
     {
-        $this->emit(MetricsEvent::ON_MEASUREMENTS, [[$this->total]]);
+        $this->emit(MetricsEvent::ON_MEASUREMENTS, [[new Measurement($this->ci, time(), $this->getMetrics())]]);
+    }
+
+    protected function getMetrics(): array
+    {
+        $metrics = [];
+        foreach ($this->counters as $counter => $value) {
+            $metrics[] = new Metric($counter, $value, MetricDatatype::COUNTER);
+        }
+        foreach ($this->times as $label => $value) {
+            $metrics[] = new Metric($label, $value, MetricDatatype::GAUGE, 'ns');
+        }
+
+        return $metrics;
     }
 
     protected function initializeCounters(): void
     {
-        $total = new Measurement(new Ci('PerfDataShipper', 'PerfDataShipper'));
         foreach (self::COUNTERS as $counter) {
-            $total->incrementCounter($counter, 0);
+            $this->counters[$counter] = 0;
         }
         foreach (self::TIMES_NS as $metric) {
-            $total->setGaugeValue($metric, 0, 'ns');
+            $this->times[$metric] = 0;
         }
-        $this->total = $total;
     }
 
     protected function scanFiles(): void
@@ -139,7 +159,7 @@ class PerfDataShipper implements EventEmitterInterface
 
     protected function stopTime(string $name, float $start): void
     {
-        $this->total->incrementCounter($name, floor(1000000 * (microtime(true) - $start)));
+        $this->times[$name] += floor(1000000 * (microtime(true) - $start));
     }
 
     public function processNextFile(): void
@@ -152,29 +172,26 @@ class PerfDataShipper implements EventEmitterInterface
 
         $allMeasurements = [];
         foreach ($content as $line) {
-            $total = $this->total;
             try {
                 $start = microtime(true);
                 $measurements = PerfDataFile::parseLine($line);
-                $total->incrementCounter(self::CNT_PARSED_LINES);
+                $this->counters[self::CNT_PARSED_LINES]++;
                 $this->stopTime(self::TIME_FILE_PARSE_NS, $start);
             } catch (\Exception $e) {
                 $this->logger->error('Metrics error: ' . $e->getMessage());
                 $measurements = [];
-                $total->incrementCounter(self::CNT_FAILED_LINES);
+                $this->counters[self::CNT_FAILED_LINES]++;
             }
 
-            $total->incrementCounter(self::CNT_PROCESSED_BYTES, strlen($line));
+            $this->counters[self::CNT_PROCESSED_BYTES] += strlen($line);
             if (! empty($measurements)) {
                 $cntMetrics = 0;
                 foreach ($measurements as $measurement) {
                     $cntMetrics += $measurement->countMetrics();
                 }
-                $total->incrementCounter(self::CNT_PROCESSED_METRICS, $cntMetrics);
+                $this->counters[self::CNT_PROCESSED_METRICS] += $cntMetrics;
                 foreach ($measurements as $measurement) {
                     $allMeasurements[] = $measurement;
-                    // Single measurement - replaced by bulk. We might also want to buffer chunks
-                    // $this->emit(self::ON_MEASUREMENT, [$measurement]);
                 }
             }
         }
