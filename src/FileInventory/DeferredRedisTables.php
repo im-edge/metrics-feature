@@ -158,77 +158,77 @@ class DeferredRedisTables
         $ns = $this->nsRrdDefinition;
         $rraSetUuidHex = Uuid::uuid5($ns, $info->getRraSet())->toString();
         // TODO: setTableEntries? Batch!
-        $futures = [];
-        $futures[] = async(fn () => $this->tables->setTableEntry('rrd_archive_set', $rraSetUuidHex, ['uuid'], [
-            'uuid' => $rraSetUuidHex
-        ]));
-        foreach ($info->getRraSet()->getRras() as $rraIndex => $rra) {
-            $futures[] = async(fn () => $this->tables->setTableEntry('rrd_archive', "$rraSetUuidHex/$rraIndex", [
-                'rrd_archive_set_uuid',
-                'rra_index',
-            ], [
-                'rrd_archive_set_uuid'   => $rraSetUuidHex,
-                'rra_index'              => $rraIndex,
-                'consolidation_function' => $rra->getConsolidationFunction(),
-                'row_count'              => $rra->getRows(),
-                'definition'             => (string) $rra,
-            ]));
-        }
-        $dsListUuidHex = Uuid::uuid5($ns, $info->getDsList())->toString();
-        $futures[] = async(fn () => $this->tables->setTableEntry('rrd_datasource_list', $dsListUuidHex, ['uuid'], [
-            'uuid' => $dsListUuidHex
-        ]));
-
-        // RrdInfo has applied aliase!!
-        foreach ($info->getDsList()->getDataSources() as $dsIndex => $ds) {
-            $futures[] = async(fn () => $this->tables->setTableEntry('rrd_datasource', "$dsListUuidHex/$dsIndex", [
-                'datasource_list_uuid',
-                'datasource_index',
-            ], [
-                'datasource_list_uuid' => $dsListUuidHex,
-                'datasource_index'     => $dsIndex,
-                'datasource_name'      => $ds->getAlias(),
-                'datasource_name_rrd'  => $ds->getName(),
-                'datasource_type'      => $ds->getType(),
-                'minimal_heartbeat'    => $ds->getHeartbeat(),
-                'min_value'            => $ds->getMin(),
-                'max_value'            => $ds->getMax(),
-            ]));
-        }
-
-        // Only for deferred new CI, differs for missing DS
-        $fileUuid = Uuid::uuid4();
-        $fileUuidHex = $fileUuid->toString();
-        $futures[] = async(fn () => $this->tables->setTableEntry('rrd_file', $fileUuidHex, ['uuid'], [
-            'uuid'              => $fileUuidHex,
-            // 'datanode_uuid'     => $this->nodeIdentifier, // ?!
-            'metric_store_uuid' => $this->metricStoreIdentifier,
-            'device_uuid'       => $ci->hostname, // ??
-            'measurement_name'  => $ci->subject,
-            'instance'          => $ci->instance,
-            'tags'              => JsonString::encode($ci->tags),
-            'filename'          => $info->getFilename(),
-            'rrd_step'          => $info->getStep(),
-            'rrd_version'       => $info->getRrdVersion(),
-            'rrd_header_size'   => $info->getHeaderSize(),
-            'rrd_datasource_list_checksum' => $dsListUuidHex, // TODO: uuid
-            'rrd_archive_set_checksum'     => $rraSetUuidHex, // TODO: uuid
-        ]));
-
-        $ciConfig = new CiConfig(
-            $fileUuid,
-            $info->getFilename(),
-            $info->getDsList()->listNames(),
-            $info->getDsList()->getAliasesMap()
-        );
-        // War: processDeferredCi war rescheduleDeferredCi
-        $futures[] = async(fn () => $this->lua->runScript('processDeferredCi', [
-            JsonString::encode($ci)
-        ], [
-            JsonString::encode($ciConfig)
-        ]));
         try {
-            await($futures);
+            $this->tables->setTableEntry('rrd_archive_set', $rraSetUuidHex, ['uuid'], [
+                'uuid' => $rraSetUuidHex
+            ]);
+            foreach ($info->getRraSet()->getRras() as $rraIndex => $rra) {
+                $this->tables->setTableEntry('rrd_archive', "$rraSetUuidHex/$rraIndex", [
+                    'rrd_archive_set_uuid',
+                    'rra_index',
+                ], [
+                    'rrd_archive_set_uuid'   => $rraSetUuidHex,
+                    'rra_index'              => $rraIndex,
+                    'consolidation_function' => $rra->getConsolidationFunction(),
+                    'row_count'              => $rra->getRows(),
+                    'definition'             => (string) $rra,
+                ]);
+            }
+            $dsListUuidHex = Uuid::uuid5($ns, $info->getDsList())->toString();
+            $this->tables->setTableEntry('rrd_datasource_list', $dsListUuidHex, ['uuid'], [
+                'uuid' => $dsListUuidHex
+            ]);
+
+            // RrdInfo has applied aliase!!
+            $dsIndex = 0;
+            foreach ($info->getDsList()->getDataSources() as $dsName => $ds) {
+                $dsIndex++;
+                $this->tables->setTableEntry('rrd_datasource', "$dsListUuidHex/$dsIndex", [
+                    'datasource_list_uuid',
+                    'datasource_index',
+                ], [
+                    'datasource_list_uuid' => $dsListUuidHex,
+                    'datasource_index'     => $dsIndex,
+                    'datasource_name'      => $ds->getAlias(),
+                    'datasource_name_rrd'  => $ds->getName(),
+                    'datasource_type'      => $ds->getType(),
+                    'minimal_heartbeat'    => $ds->getHeartbeat(),
+                    'min_value'            => $ds->getMin(),
+                    'max_value'            => $ds->getMax(),
+                ]);
+            }
+
+            // Only for deferred new CI, differs for missing DS
+            $fileUuid = Uuid::uuid4();
+            $fileUuidHex = $fileUuid->toString();
+            $this->tables->setTableEntry('rrd_file', $fileUuidHex, ['uuid'], [
+                'uuid'              => $fileUuidHex,
+                // 'datanode_uuid'     => $this->nodeIdentifier, // ?!
+                'metric_store_uuid' => $this->metricStoreIdentifier,
+                'device_uuid'       => Uuid::isValid($ci->hostname) ? $ci->hostname : Uuid::uuid5($ns, $ci->hostname), // ??
+                'measurement_name'  => $ci->subject,
+                'instance'          => $ci->instance,
+                'tags'              => JsonString::encode($ci->tags),
+                'filename'          => $info->getFilename(),
+                'rrd_step'          => $info->getStep(),
+                'rrd_version'       => $info->getRrdVersion(),
+                'rrd_header_size'   => $info->getHeaderSize(),
+                'rrd_datasource_list_checksum' => $dsListUuidHex, // TODO: uuid
+                'rrd_archive_set_checksum'     => $rraSetUuidHex, // TODO: uuid
+            ]);
+
+            $ciConfig = new CiConfig(
+                $fileUuid,
+                $info->getFilename(),
+                $info->getDsList()->listNames(),
+                $info->getDsList()->getAliasesMap()
+            );
+            // War: processDeferredCi war rescheduleDeferredCi
+            $this->lua->runScript('processDeferredCi', [
+                JsonString::encode($ci)
+            ], [
+                JsonString::encode($ciConfig)
+            ]);
         } catch (\Throwable $e) {
             $this->logger->error($e->getMessage());
         }
