@@ -104,14 +104,24 @@ class SampleRraSet
         'RRA:MIN:0.5:21600:5840'
     ];
 
+    public static function full(): RraSet
+    {
+        return new RraSet(static::$fullWithSeconds);
+    }
+
     public static function faster(): RraSet
     {
         return new RraSet(static::$fasterCreate);
     }
 
-    public static function pnpDefaults(): RraSet
+    public static function defaults(): RraSet
     {
         return new RraSet(static::$defaultCreate);
+    }
+
+    public static function pnpDefaults(): RraSet
+    {
+        return new RraSet(static::$pnpDefault);
     }
 
     public static function kickstartWithSeconds(): RraSet
