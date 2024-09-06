@@ -22,10 +22,10 @@
     "gipfl/json": ">=0.2",
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.7",
-    "imedge/icinga-perf-data": ">=0.2",
-    "imedge/rrd-graph-info": "^0.1.1",
-    "imedge/rrd-structure": ">=0.2.1",
-    "imedge/rrdcached": ">=0.1",
+    "imedge/icinga-perf-data": ">=0.3",
+    "imedge/rrd-graph-info": ">=0.2.1",
+    "imedge/rrd-structure": ">=0.3",
+    "imedge/rrdcached": ">=0.3",
     "ramsey/uuid": "^4"
   }
 }
