@@ -16,7 +16,6 @@ use Ramsey\Uuid\UuidInterface;
 use Revolt\EventLoop;
 
 use function Amp\async;
-use function Amp\Future\await;
 use function Amp\Future\awaitAll;
 use function count;
 use function key;
