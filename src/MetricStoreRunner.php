@@ -55,6 +55,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
             $metricStore->getBaseDir() . '/rrdcached',
             $this->logger
         );
+        $this->rrdCachedRunner->requireDirectoryStructure();
         $this->redisRunner = new RedisRunner(
             static::getRedisBinary(),
             $this->metricStore->getRedisBaseDir(),
