@@ -23,7 +23,7 @@ class RrdFileStore
         protected readonly LoggerInterface $logger
     ) {
         // alternative: SampleRraSet::kickstartWithSeconds();
-        $this->defaultRraSet = SampleRraSet::pnpDefaults();
+        $this->defaultRraSet = SampleRraSet::full();
     }
 
     public function createOrTweak(string $filename, DsList $dsList, int $step, int $start): RrdInfo
