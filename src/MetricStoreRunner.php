@@ -175,7 +175,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         $rrdFileStore = new RrdFileStore($rrdCached, $rrdtool, $this->logger);
         $store = new RedisTableStore($redisClient, $rrdCached, $rrdFileStore, $this->logger);
         $this->deferredHandler = new DeferredRedisTables(
-            $this->metricStore->getNodeUuid(),
+            $this->metricStore->getUuid(),
             $redisClient,
             new RedisTables($this->metricStore->getNodeUuid()->toString(), $this->mainRedis, $this->logger),
             $store,
