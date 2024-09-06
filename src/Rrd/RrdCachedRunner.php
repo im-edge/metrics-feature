@@ -34,11 +34,16 @@ class RrdCachedRunner extends ProcessRunnerHelper
         return $this->baseDir . '/rrdcached.pid';
     }
 
-    protected function onStartingProcess(): void
+    public function requireDirectoryStructure(): void
     {
         Directory::requireWritable($this->baseDir);
         Directory::requireWritable($this->getJournalDirectory());
         Directory::requireWritable($this->getDataDirectory());
+    }
+
+    protected function onStartingProcess(): void
+    {
+        $this->requireDirectoryStructure();
         $pidFile = $this->getPidFile();
         if (file_exists($pidFile)) {
             $this->logger->notice("Unlinking PID file in $pidFile");
