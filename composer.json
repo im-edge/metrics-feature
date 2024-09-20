@@ -23,7 +23,7 @@
     "gipfl/linux-health": ">=0.2",
     "gipfl/log": ">=0.7",
     "imedge/icinga-perf-data": ">=0.4",
-    "imedge/rrd-graph-info": ">=0.2.1",
+    "imedge/rrd-graph-info": ">=0.3",
     "imedge/rrd-structure": ">=0.4",
     "imedge/rrdcached": ">=0.3",
     "ramsey/uuid": "^4"
