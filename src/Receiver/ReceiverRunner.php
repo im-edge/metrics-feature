@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Receiver;
 
-use gipfl\DataType\Settings;
+use IMEdge\Config\Settings;
 use IMEdge\MetricsFeature\MetricStore;
 use Psr\Log\LoggerInterface;
 use stdClass;
