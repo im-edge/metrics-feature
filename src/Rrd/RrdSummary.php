@@ -100,7 +100,16 @@ class RrdSummary
                 $results[$filename][$dsName] = [];
             }
 
-            $results[$filename][$dsName][$what] = NumericValue::parseLocalizedFloat($value);
+            $normalizedValue = NumericValue::parseLocalizedFloat($value);
+            $check = (string) $normalizedValue;
+            if ($check === 'INF') {
+                $normalizedValue = 'INF';
+            } elseif ($check === '-INF') {
+                $normalizedValue = '-INF';
+            } elseif ($check === 'NAN') {
+                $normalizedValue = 'NAN';
+            }
+            $results[$filename][$dsName][$what] = $normalizedValue;
         }
     }
 
