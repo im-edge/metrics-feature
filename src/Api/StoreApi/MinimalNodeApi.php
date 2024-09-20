@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Api\StoreApi;
 
-use gipfl\DataType\Settings;
+use IMEdge\Config\Settings;
 use IMEdge\Inventory\NodeIdentifier;
 use IMEdge\JsonRpc\JsonRpcConnection;
 use IMEdge\MetricsFeature\MetricStore;

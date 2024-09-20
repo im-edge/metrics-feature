@@ -4,7 +4,7 @@ namespace IMEdge\MetricsFeature;
 
 use Evenement\EventEmitterInterface;
 use Evenement\EventEmitterTrait;
-use gipfl\DataType\Settings;
+use IMEdge\Config\Settings;
 use gipfl\IcingaApi\ApiEvent\CheckResultApiEvent;
 use gipfl\IcingaApi\DataPoint;
 use gipfl\IcingaApi\IcingaStreamingClient;

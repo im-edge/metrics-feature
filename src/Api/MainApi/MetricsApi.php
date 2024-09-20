@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Api\MainApi;
 
-use gipfl\DataType\Settings;
+use IMEdge\Config\Settings;
 use IMEdge\MetricsFeature\FeatureRunner;
 use IMEdge\MetricsFeature\MetricStore;
 use IMEdge\RpcApi\ApiMethod;
