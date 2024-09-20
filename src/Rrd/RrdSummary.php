@@ -90,7 +90,7 @@ class RrdSummary
             list($dsId, $what, $value) = explode(' ', $line, 3);
             if (!is_numeric($dsId)) {
                 // TODO: Should we fail here?
-                echo $line . "\n";
+                echo $line . "<- RRD SUMMARY?!\n";
                 continue;
             }
 
