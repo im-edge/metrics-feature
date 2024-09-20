@@ -4,7 +4,7 @@ namespace IMEdge\MetricsFeature;
 
 use Amp\Redis\RedisClient;
 use Exception;
-use gipfl\Json\JsonString;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\Format;
 use IMEdge\RrdCached\RrdCachedClient;
 use IMEdge\RrdCached\RrdCachedCommand;

@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature;
 
-use gipfl\Json\JsonSerialization;
+use IMEdge\Json\JsonSerialization;
 use IMEdge\RrdStructure\DsList;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;

@@ -3,7 +3,7 @@
 namespace IMEdge\MetricsFeature;
 
 use Amp\Redis\RedisClient;
-use gipfl\Json\JsonString;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\Api\StoreApi\MinimalNodeApi;
 use IMEdge\MetricsFeature\Api\StoreApi\RrdApi;

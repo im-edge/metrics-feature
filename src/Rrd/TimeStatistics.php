@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Rrd;
 
-use gipfl\Json\JsonSerialization;
+use IMEdge\Json\JsonSerialization;
 use InvalidArgumentException;
 
 /**

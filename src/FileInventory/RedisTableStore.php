@@ -3,7 +3,7 @@
 namespace IMEdge\MetricsFeature\FileInventory;
 
 use Amp\Redis\RedisClient;
-use gipfl\Json\JsonString;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\MetricsFeature\CiConfig;

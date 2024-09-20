@@ -2,8 +2,8 @@
 
 namespace IMEdge\MetricsFeature;
 
-use gipfl\Json\JsonString;
 use gipfl\Log\PrefixLogger;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\Measurement;
 use IMEdge\MetricsFeature\Api\PerStore\LogApi;
 use IMEdge\MetricsFeature\Store\StoreCommandRunner;

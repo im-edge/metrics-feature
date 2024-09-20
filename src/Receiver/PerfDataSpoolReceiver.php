@@ -2,7 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Receiver;
 
-use gipfl\Json\JsonString;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\ApplicationFeature;
 use IMEdge\MetricsFeature\PerfDataShipper;

@@ -3,7 +3,7 @@
 namespace IMEdge\MetricsFeature\FileInventory;
 
 use Amp\Redis\RedisClient;
-use gipfl\Json\JsonString;
+use IMEdge\Json\JsonString;
 use IMEdge\Metrics\Ci;
 use IMEdge\Metrics\Measurement;
 use IMEdge\MetricsFeature\CiConfig;
@@ -92,7 +92,6 @@ class DeferredRedisTables
 
     protected function checkForDeferred(): bool
     {
-
         if (! empty($this->pendingCi)) {
             $this->logger->debug(sprintf('There are still %d items pending:', count($this->pendingCi)));
             return false;
