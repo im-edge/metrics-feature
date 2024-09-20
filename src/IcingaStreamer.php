@@ -15,6 +15,7 @@ use IMEdge\Metrics\MetricDatatype;
 use IMEdge\Metrics\MetricsEvent;
 use Psr\Log\LoggerInterface;
 
+// TODO: this is outdated
 class IcingaStreamer implements EventEmitterInterface
 {
     use EventEmitterTrait;
