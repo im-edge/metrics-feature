@@ -62,7 +62,7 @@ class CiConfig implements JsonSerialization
     protected static function filenameForUuid(UuidInterface $uuid): string
     {
         $hex = bin2hex($uuid->getBytes()); // Bullshit
-        return substr($hex, 0, 3) . "/$hex.rrd";
+        return substr($hex, 0, 2) . "/$hex.rrd";
     }
 
     public function jsonSerialize(): object
