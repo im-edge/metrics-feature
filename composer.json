@@ -25,7 +25,7 @@
     "imedge/log": ">=0.7",
     "imedge/rrd-graph-info": ">=0.3",
     "imedge/rrd-structure": ">=0.4",
-    "imedge/rrdcached": ">=0.3",
+    "imedge/rrdcached": ">=0.4",
     "ramsey/uuid": "^4"
   }
 }
