@@ -88,7 +88,5 @@ try {
 } catch (Throwable $e) {
     $logger->error($e->getMessage() . ' (' . $e->getFile() . ':' . $e->getLine());
     $logger->error('Shutting down MetricStore right now');
-    EventLoop::delay(0.1, function () {
-        exit(1);
-    });
+    EventLoop::delay(0.1, fn () => exit(1));
 }
