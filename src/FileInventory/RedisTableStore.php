@@ -41,7 +41,7 @@ class RedisTableStore
         // $step = $base === 1 ? 1 : 60;
         $info = $this->rrdFileStore->createOrTweak($ciConfig->filename, $dsList, $step, $start);
         $ciName = JsonString::encode($measurement->ci);
-        $this->logger->debug("Registering $ciName in Redis");
+        // $this->logger->debug("Registering $ciName in Redis");
         $this->redis->execute('HSET', 'ci', $ciName, JsonString::encode($ciConfig));
         $info->getDsList()->applyAliasMapFromDsList($dsList);
         return $info;

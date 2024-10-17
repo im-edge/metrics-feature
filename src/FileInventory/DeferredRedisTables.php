@@ -99,7 +99,6 @@ class DeferredRedisTables
         $missing = $this->fetchDeferred();
         $cntMissingCi = 0;
         foreach ($missing['missing-ci'] ?? [] as $ciString => $measurementString) {
-            $this->logger->notice('String: ' . $ciString);
             try {
                 $measurement = Measurement::fromSerialization(JsonString::decode($measurementString));
                 $this->pendingCi[$ciString] = $measurement;
@@ -153,7 +152,7 @@ class DeferredRedisTables
         $ci = $measurement->ci;
         $ciLogName = self::getCiLogName($ci, $ciKey);
         // TODO: check whether ciLogName equals ciKey
-        $this->logger->debug("DeferredHandler: rescheduling all entries for $ciLogName");
+        // $this->logger->debug("DeferredHandler: rescheduling all entries for $ciLogName");
         $ns = $this->nsRrdDefinition;
         $rraSetUuidHex = Uuid::uuid5($ns, $info->getRraSet())->toString();
         // TODO: setTableEntries? Batch!

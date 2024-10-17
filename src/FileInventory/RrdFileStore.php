@@ -73,7 +73,7 @@ class RrdFileStore
             $dsList,
             $rraSet
         );
-        $this->logger->notice($command);
+        // $this->logger->notice($command);
         $this->rrdTool->send($command);
 
         return $this->rrdCached->info($filename);
