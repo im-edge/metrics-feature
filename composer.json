@@ -20,7 +20,7 @@
     "ext-posix": "*",
     "gipfl/linux-health": ">=0.2",
     "imedge/config": ">=0.1",
-    "imedge/icinga-perf-data": ">=0.4",
+    "imedge/icinga-perf-data": ">=0.5",
     "imedge/json": ">=0.1",
     "imedge/log": ">=0.7",
     "imedge/rrd-graph-info": ">=0.3",
