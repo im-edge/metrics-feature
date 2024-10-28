@@ -11,8 +11,6 @@ use IMEdge\MetricsFeature\Api\MainApi\MetricsApi;
 use IMEdge\MetricsFeature\FeatureRunner;
 use IMEdge\Node\Feature;
 
-require __DIR__ . '/vendor/autoload.php';
-
 $runner = new FeatureRunner($this, $this->logger);
 $this->events->on(MetricsEvent::ON_MEASUREMENTS, function ($measurements) use ($runner) {
     $storeName = 'snmp'; // TODO: ?!?!?
