@@ -4,7 +4,6 @@ namespace IMEdge\MetricsFeature\Api\StoreApi;
 
 use IMEdge\Config\Settings;
 use IMEdge\Inventory\NodeIdentifier;
-use IMEdge\JsonRpc\JsonRpcConnection;
 use IMEdge\MetricsFeature\MetricStore;
 use IMEdge\Node\Rpc\ApiRunner;
 use IMEdge\RpcApi\ApiMethod;
@@ -79,15 +78,5 @@ class MinimalNodeApi
     public function listListeners(): array
     {
         return [];
-    }
-
-    #[ApiMethod]
-    public function setRemoteInventory(
-        JsonRpcConnection $connection,
-        UuidInterface $datanodeUuid,
-        array $tablePositions
-    ): bool {
-        $this->logger->notice('Metric Store sub-process is ignoring REMOTE INVENTORY');
-        return false;
     }
 }
