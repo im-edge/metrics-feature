@@ -4,6 +4,7 @@ namespace IMEdge\MetricsFeature\FileInventory;
 
 use IMEdge\Filesystem\Directory;
 use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
+use IMEdge\MetricsFeature\Rrd\SingleShotRunner;
 use IMEdge\RrdCached\RrdCachedClient;
 use IMEdge\RrdStructure\DsList;
 use IMEdge\RrdStructure\RraSet;
@@ -23,6 +24,7 @@ class RrdFileStore
         protected readonly LoggerInterface $logger
     ) {
         // alternative: SampleRraSet::kickstartWithSeconds();
+        $this->singleShot = new SingleShotRunner($logger);
         $this->defaultRraSet = SampleRraSet::full();
     }
 
@@ -73,8 +75,11 @@ class RrdFileStore
             $dsList,
             $rraSet
         );
-        // $this->logger->notice($command);
-        $this->rrdTool->send($command);
+        if (strlen($command) > 4000) {
+            $this->rrdTool->send($command);
+        } else {
+            $this->singleShot->run($this->rrdTool->binary . ' ' . $command, $this->rrdTool->getWorkingDirectory());
+        }
 
         return $this->rrdCached->info($filename);
     }
