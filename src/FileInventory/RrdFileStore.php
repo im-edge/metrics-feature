@@ -17,6 +17,7 @@ class RrdFileStore
 {
     protected bool $rrdCachedHasTuneCommand = true;
     protected RraSet $defaultRraSet;
+    protected SingleShotRunner $singleShot;
 
     public function __construct(
         protected readonly RrdCachedClient $rrdCached,
