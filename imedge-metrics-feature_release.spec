@@ -1,7 +1,7 @@
 %define revision 1
 %define git_version %( git describe --tags | cut -c2- | tr -s '-' '+')
 %define git_hash %( git rev-parse --short HEAD )
-%define basedir         %{_datadir}/imedge-features/%{name}
+%define basedir         %{_datadir}/imedge-features/metrics
 %define bindir          %{_bindir}
 %undefine __brp_mangle_shebangs
 
