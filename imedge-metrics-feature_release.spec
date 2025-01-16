@@ -8,7 +8,7 @@
 Name:           imedge-metrics-feature
 Version:        %{git_version}
 Release:        %{revision}%{?dist}
-Summary:        IMEdge Metrics Feautre
+Summary:        IMEdge Metrics Feature
 Group:          Applications/System
 License:        MIT
 URL:            https://github.com/im-edge
