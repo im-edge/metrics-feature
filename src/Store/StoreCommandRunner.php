@@ -5,11 +5,9 @@ namespace IMEdge\MetricsFeature\Store;
 use Amp\Process\Process;
 use IMEdge\JsonRpc\JsonRpcConnection;
 use IMEdge\JsonRpc\RequestHandler;
-use IMEdge\Log\LogHelper;
 use IMEdge\ProcessRunner\BufferedLineReader;
 use IMEdge\ProcessRunner\ProcessRunnerHelper;
 use IMEdge\Protocol\NetString\NetStringConnection;
-
 use Revolt\EventLoop;
 
 use function Amp\ByteStream\pipe;

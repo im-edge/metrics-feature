@@ -203,7 +203,8 @@ class DeferredRedisTables
                 'uuid'              => $fileUuidHex,
                 // 'datanode_uuid'     => $this->nodeIdentifier, // ?!
                 'metric_store_uuid' => $this->metricStoreIdentifier,
-                'device_uuid'       => Uuid::isValid($ci->hostname) ? $ci->hostname : Uuid::uuid5($ns, $ci->hostname), // ??
+                // Do we really want deterministic UUIDs ??
+                'device_uuid'       => Uuid::isValid($ci->hostname) ? $ci->hostname : Uuid::uuid5($ns, $ci->hostname),
                 'measurement_name'  => $ci->subject,
                 'instance'          => $ci->instance,
                 'tags'              => JsonString::encode($ci->tags),

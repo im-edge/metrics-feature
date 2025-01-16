@@ -79,7 +79,6 @@ class RrdApi
         }
         $rra = $first->getRraSet();
         return $this->rrdtool->send("create $outputFile $rra $newDs$cmdSuffix");
-
     }
 
     #[ApiMethod]
