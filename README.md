@@ -1,7 +1,7 @@
 IMEdge Metrics feature
 ======================
 
-This feature wants to offer an unexcited pleasantly relaxed performance
+This IMEdge feature wants to offer an unexcited pleasantly relaxed performance
 graphing experience. Implemented as a thin and modern abstraction layer based
 on matured technology it puts its ma  in focus on robustness and ease of use.
 
