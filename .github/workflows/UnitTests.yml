@@ -19,7 +19,7 @@ jobs:
     continue-on-error: ${{ matrix.php == '8.4' }}
     steps:
       - name: Check out Source Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install PHP
         uses: shivammathur/setup-php@v2

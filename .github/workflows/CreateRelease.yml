@@ -24,7 +24,7 @@ jobs:
       - name: Build Package
         id: build-package
         run: |
-          rpmbuild -bb imedge-metrics-feature_release.spec
+          rpmbuild -bb packaging/rh.spec
           echo "rpm_file="$(find $HOME/rpmbuild/RPMS/ -type f -name '*.rpm') >> "$GITHUB_OUTPUT"
           echo "rpm_filename="$(find $HOME/rpmbuild/RPMS/ -type f -name '*.rpm' -exec basename {} \;) >> "$GITHUB_OUTPUT"
 

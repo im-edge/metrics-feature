@@ -1,5 +1,5 @@
 %define revision 1
-%define git_version %( git describe --long | cut -c2- | tr -s '-' '+')
+%define git_version %( git describe --tags | cut -c2- | tr -s '-' '+')
 %define git_hash %( git rev-parse --short HEAD )
 %define basedir         %{_datadir}/imedge-features/metrics
 %define bindir          %{_bindir}
@@ -39,5 +39,5 @@ rm -rf %{buildroot}
 %{basedir}
 
 %changelog
-* Mon Jan 13 2025 Thomas Gelf <thomas@gelf.net> 0.9.4
+* Mon Jan 13 2025 Thomas Gelf <thomas@gelf.net> 0.0.0
 - Initial packaging
