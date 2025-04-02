@@ -76,7 +76,7 @@ class RrdFileStore
             $dsList,
             $rraSet
         );
-        if (strlen($command) > 4000) {
+        if (strlen($command) < 4000) {
             $this->rrdTool->send($command);
         } else {
             $this->singleShot->run($this->rrdTool->binary . ' ' . $command, $this->rrdTool->getWorkingDirectory());
