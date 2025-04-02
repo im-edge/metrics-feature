@@ -7,6 +7,7 @@ use IMEdge\Json\JsonString;
 use IMEdge\Metrics\MetricsEvent;
 use IMEdge\MetricsFeature\Api\StoreApi\MinimalNodeApi;
 use IMEdge\MetricsFeature\Api\StoreApi\RrdApi;
+use IMEdge\MetricsFeature\Api\StoreApi\SingleStoreApi;
 use IMEdge\MetricsFeature\FileInventory\DeferredRedisTables;
 use IMEdge\MetricsFeature\FileInventory\RedisTableStore;
 use IMEdge\MetricsFeature\FileInventory\RrdFileStore;
@@ -96,6 +97,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         $this->runDeferredHandler();
         $this->runMainHandler();
         $this->initializeRrdApi();
+        $this->initializeSingleStoreApi();
         delay(0.05);
         if ($receivers = $metricStore->requireConfig()->get('receivers')) {
             $runner = new ReceiverRunner($this->logger, $receivers, $metricStore);
@@ -137,6 +139,17 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
     protected function initializeRrdApi(): void
     {
         $this->api->addApi(new RrdApi($this->rrdtoolRunner, $this->connectToRrdCached(), $this->logger));
+    }
+
+    protected function initializeSingleStoreApi(): void
+    {
+        $this->api->addApi(new SingleStoreApi(
+            $this->connectToRedis(ApplicationFeature::PROCESS_NAME . '::single-store-api'),
+            new RedisTables($this->metricStore->getNodeUuid()->toString(), $this->mainRedis, $this->logger),
+            $this->connectToRrdCached(),
+            $this->rrdCachedRunner->getDataDirectory(),
+            $this->logger
+        ));
     }
 
     protected function runMainHandler(): void
