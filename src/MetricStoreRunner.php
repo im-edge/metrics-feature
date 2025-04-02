@@ -95,7 +95,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         $this->runSelfMonitoring();
         $this->runDeferredHandler();
         $this->runMainHandler();
-        $this->initializeRrdtool();
+        $this->initializeRrdApi();
         delay(0.05);
         if ($receivers = $metricStore->requireConfig()->get('receivers')) {
             $runner = new ReceiverRunner($this->logger, $receivers, $metricStore);
@@ -134,7 +134,7 @@ class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
         return static::DEFAULT_RRD_CACHED_BINARY;
     }
 
-    protected function initializeRrdtool(): void
+    protected function initializeRrdApi(): void
     {
         $this->api->addApi(new RrdApi($this->rrdtoolRunner, $this->connectToRrdCached(), $this->logger));
     }
