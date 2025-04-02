@@ -10,6 +10,8 @@ Inventory.new = function(prefix)
     local redisKeyDeferredCi = prefix .. ':deferred-ci'
     local redisKeyMissingCi = prefix .. ':missing-ci'
     local redisKeyMissingDs = prefix .. ':missing-ds'
+    -- Duplicate, defined also in Queue:
+    local redisStreamDeferredCi = prefix .. ':deferred:'
 
     function self.setCiConfig(ciKey, config)
         if config.filename == nil or config.dsNames == nil or config.dsMap == nil then
@@ -36,6 +38,14 @@ Inventory.new = function(prefix)
         return redis.call('HEXISTS', redisKeyDeferredCi, ci) > 0
     end
 
+    function self.deleteCi(ciKey)
+        return redis.call('HDEL', redisKeyCiConfig, ciKey) +
+            redis.call('HDEL', redisKeyDeferredCi, ciKey) +
+            redis.call('HDEL', redisKeyMissingCi, ciKey) +
+            redis.call('HDEL', redisKeyMissingDs, ciKey) +
+            redis.call('DEL', redisStreamDeferredCi .. ciKey) > 0
+    end
+
     function self.freeDeferred(ciKey)
         redis.call('HDEL', redisKeyDeferredCi, ciKey)
         redis.call('HDEL', redisKeyMissingCi, ciKey)
@@ -47,6 +57,13 @@ Inventory.new = function(prefix)
             deferredSince = time.now(),
             dataPoints = dataPoints,
             ts = ts,
+            reason = reason
+        }))
+    end
+
+    function self.deferWithReason(ciKey, reason)
+        redis.call('HSET', redisKeyDeferredCi, ciKey, cjson.encode({
+            deferredSince = time.now(),
             reason = reason
         }))
     end
