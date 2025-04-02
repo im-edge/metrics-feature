@@ -79,6 +79,12 @@ class RrdFileStore
         if (strlen($command) < 4000) {
             $this->rrdTool->send($command);
         } else {
+            $this->logger->notice(sprintf(
+                'Long command, running dedicated process: (%s); %s %s',
+                $this->rrdTool->getWorkingDirectory(),
+                $this->rrdTool->binary,
+                $command
+            ));
             $this->singleShot->run($this->rrdTool->binary . ' ' . $command, $this->rrdTool->getWorkingDirectory());
         }
 
