@@ -31,7 +31,7 @@
     "imedge/node-provided-libs": "^0.9.0",
     "imedge/rrd-graph-info": ">=0.3",
     "imedge/rrd-structure": ">=0.4",
-    "imedge/rrdcached": ">=0.4",
+    "imedge/rrdcached": ">=0.5",
     "ramsey/uuid": "^4"
   },
   "require-dev": {
