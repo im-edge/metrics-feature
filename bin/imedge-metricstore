@@ -24,7 +24,7 @@ use Revolt\EventLoop;
 
 use function Amp\Redis\createRedisClient;
 
-require_once dirname(__DIR__, 2) . '/node/vendor/autoload.php'; // TODO??
+require_once '/usr/share/imedge-node/vendor/autoload.php'; // TODO??
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 error_reporting(E_ALL | E_STRICT);
 
