@@ -65,7 +65,7 @@ class RrdFileStore
         int $step,
         int $start,
         DsList $dsList,
-        RraSet $rraSet = null
+        ?RraSet $rraSet = null
     ): RrdInfo {
         Directory::requireWritable(dirname($filename), true);
         $command = sprintf(
