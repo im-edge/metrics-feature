@@ -113,7 +113,7 @@ class SingleStoreApi
     }
 
     #[ApiMethod]
-    public function getFiledScheduledForDeletion(): array
+    public function getFilesScheduledForDeletion(): array
     {
         $result = [];
         $scheduled = RedisResult::toArray($this->redis->execute('HGETALL', self::PREFIX . self::HASH_SCHEDULED));
