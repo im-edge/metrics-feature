@@ -58,6 +58,11 @@ class FeatureRunner
         );
     }
 
+    public function hasMetricStore(string $storeName): bool
+    {
+        return isset($this->redisClients[$storeName]);
+    }
+
     protected function initializeMetricStores(): void
     {
         foreach ($this->feature->settings->getArray('registered-metric-stores') as $path) {
