@@ -13,7 +13,11 @@ use IMEdge\Node\Feature;
 
 $runner = new FeatureRunner($this, $this->logger);
 $this->events->on(MetricsEvent::ON_MEASUREMENTS, function ($measurements) use ($runner) {
-    $storeName = 'snmp'; // TODO: ?!?!?
+    // TODO: Should be configurable
+    $storeName = 'snmp';
+    if (! $runner->hasMetricStore($storeName)) {
+        return;
+    }
     try {
         $runner->shipMeasurements($measurements, $storeName);
     } catch (Throwable $e) {
