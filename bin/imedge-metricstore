@@ -24,7 +24,12 @@ use Revolt\EventLoop;
 
 use function Amp\Redis\createRedisClient;
 
-require_once '/usr/share/imedge-node/vendor/autoload.php'; // TODO??
+// TODO: this should become a worker instance
+if (file_exists(dirname(__DIR__, 2) . '/node/vendor/autoload.php')) {
+    require_once dirname(__DIR__, 2) . '/node/vendor/autoload.php';
+} else {
+    require_once '/usr/share/imedge-node/vendor/autoload.php';
+}
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 error_reporting(E_ALL | E_STRICT);
 
