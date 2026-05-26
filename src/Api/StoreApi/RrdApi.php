@@ -2,6 +2,7 @@
 
 namespace IMEdge\MetricsFeature\Api\StoreApi;
 
+use IMEdge\Json\JsonString;
 use IMEdge\MetricsFeature\Rrd\RrdSummary;
 use IMEdge\MetricsFeature\Rrd\RrdtoolRunner;
 use IMEdge\RpcApi\ApiMethod;
@@ -12,6 +13,7 @@ use IMEdge\RrdStructure\DsList;
 use IMEdge\RrdStructure\RrdInfo;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use stdClass;
 
 #[ApiNamespace('rrd')]
 class RrdApi
@@ -31,6 +33,24 @@ class RrdApi
         $duration = (hrtime(true) - $start) / 1_000_000_000;
 
         return GraphInfo::parse($image, $format, $duration, $this->logger);
+    }
+
+    /**
+     * @return stdClass{
+     *     meta: stdClass{start: int, end: int, step: int, legend: string[]},
+     *     data: array<float[]>,
+     *     timeSpent: float
+ *     }
+     */
+    #[ApiMethod]
+    public function data(string $command): stdClass
+    {
+        $start = hrtime(true);
+        $export = JsonString::decode($this->rrdtool->send($command));
+        unset($export->about); // 'RRDtool graph JSON output'
+        $export->timeSpent = (hrtime(true) - $start) / 1_000_000_000;
+
+        return $export;
     }
 
     #[ApiMethod]
