@@ -31,8 +31,7 @@
     "imedge/node-provided-libs": "^0.20-rc",
     "imedge/rrd-graph-info": ">=0.3.3",
     "imedge/rrd-structure": ">=0.4.1",
-    "imedge/rrdcached": ">=0.5",
-    "ramsey/uuid": "^4"
+    "imedge/rrdcached": ">=0.5"
   },
   "require-dev": {
     "phpstan/phpstan": "^1.10 | ^2",
