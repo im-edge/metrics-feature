@@ -35,8 +35,8 @@ use function Amp\Redis\createRedisClient;
 class MetricStoreRunner implements DaemonComponent, ProcessWithPidInterface
 {
     protected const DEFAULT_REDIS_BINARY = '/usr/bin/redis-server';
-    protected const DEFAULT_RRD_TOOL_BINARY = '/usr/local/bin/rrdtool';
-    protected const DEFAULT_RRD_CACHED_BINARY = '/usr/local/bin/rrdcached';
+    protected const DEFAULT_RRD_TOOL_BINARY = '/opt/rrdtool/bin/rrdtool';
+    protected const DEFAULT_RRD_CACHED_BINARY = '/opt/rrdtool/bin/rrdcached';
 
     protected RrdCachedRunner $rrdCachedRunner;
     protected RrdtoolRunner $rrdtoolRunner;
